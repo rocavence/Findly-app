@@ -26,7 +26,6 @@ final class FinderController {
     init() {
         managedWindowID = Defaults.managedWindowID
         lastEdge = Defaults.lastEdge
-        requestAccessibilityIfNeeded()
         observeAppActivation()
         observeFinderTermination()
         hotkeyManager = HotkeyManager { [weak self] edge in
@@ -63,13 +62,6 @@ final class FinderController {
         Defaults.managedWindowID = nil
         managedWindowID = nil
         axWindow = nil
-    }
-
-    // MARK: - Permission
-
-    private func requestAccessibilityIfNeeded() {
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
     }
 
     // MARK: - App activation observer
