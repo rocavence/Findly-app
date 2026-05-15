@@ -70,8 +70,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
         let next = sender.state == .off
-        LaunchAtLogin.setEnabled(next)
+        if next && !LaunchAtLogin.isInstalledInApplications {
+            showInstallToApplicationsAlert()
+            return
+        }
+        if case .failure(let error) = LaunchAtLogin.setEnabled(next) {
+            showLoginItemError(error)
+        }
         sender.state = LaunchAtLogin.isEnabled ? .on : .off
+    }
+
+    private func showInstallToApplicationsAlert() {
+        let alert = NSAlert()
+        alert.messageText = "請先把 Findly 搬進「應用程式」"
+        alert.informativeText = """
+        Login Item 需要 app 在 /Applications 才能跨重開機持續生效。
+
+        執行 ./Scripts/install.sh 一鍵搬移，或手動把 Findly.app 拖到「應用程式」資料夾後重新開啟。
+        """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "好")
+        alert.runModal()
+    }
+
+    private func showLoginItemError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "無法切換 Login Item"
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "好")
+        alert.runModal()
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
