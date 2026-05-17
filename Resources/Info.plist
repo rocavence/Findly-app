@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.findly.app</string>
+    <key>CFBundleName</key>
+    <string>Findly</string>
+    <key>CFBundleDisplayName</key>
+    <string>Findly</string>
+    <key>CFBundleExecutable</key>
+    <string>Findly</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Findly 需要 Apple Events 權限才能控制 Finder 視窗位置與大小。</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Findly 需要輔助使用權限才能流暢地移動 Finder 視窗。</string>
+    <key>NSAppleScriptEnabled</key>
+    <false/>
+</dict>
+</plist>

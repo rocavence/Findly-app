@@ -1,0 +1,9 @@
+.DS_Store
+/.build
+/build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/
+.netrc
+/Findly-*.zip
