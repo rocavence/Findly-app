@@ -1,6 +1,6 @@
 # Findly
 
-把 Finder 視窗釘在螢幕任一邊。從選單列、全域快捷鍵、或點 Dock 的 Finder 圖示就能召喚出來；點到其他 app 就自動滑回邊外。
+從螢幕任一邊滑出一個 Finder 風格的檔案抽屜。選單列、全域快捷鍵召喚，點到其他 app 就自動滑回邊外。
 
 <p align="center">
   <img src="Resources/icon-1024.png" width="160" alt="Findly icon">
@@ -8,19 +8,40 @@
 
 ## 它在做什麼
 
-Findly 是一個 macOS menu bar 小工具。它在背景管理「一個」Finder 視窗，可以從螢幕四側任一邊滑進/滑出，整個畫面只露出 Finder 視窗本身（不再覆蓋一層自家 UI）。
+Findly 是一個 macOS menu bar 小工具。它是一個**自己的視窗**（不是真的 Finder），可以從螢幕四側任一邊滑進/滑出，裡面是一個做得很像 Finder 列表檢視的檔案瀏覽器。
 
-- ⌃⌥ ↑ / ↓ / ← / → 召喚到上/下/左/右
+- ⌘\` 召喚／收起；⌃⌥ ↑ / ↓ / ← / → 召喚到上/下/左/右
 - 滑鼠在哪個螢幕，就召喚到那個螢幕
-- 點到其他 app → Finder 自動滑出螢幕外
-- 再按一次快捷鍵 → 滑回原本的資料夾、原本的卷軸位置
-- 拖過邊界調整寬高 → 下次召喚記得
+- 切換到其他 app → 自動滑出螢幕外；再按一次快捷鍵滑回來
+- 拖過內側邊界調整寬高 → 下次召喚記得
+- 因為是自己的視窗，靠 `collectionBehavior` 一行就出現在每個 Space，不需要碰 Finder、Apple Events 或私有 SPI
 
-## 為什麼
+### 抽屜裡是什麼
 
-Unclutter 之類的工具讓你從螢幕上緣下滑出一個抽屜，可以隨手暫存檔案、筆記、剪貼簿。但只有一個邊、抽屜內也只是自家簡化 UI——要找檔案還是得開 Finder。
+一個 `NSOutlineView` 撐起的 Finder 列表檢視：
 
-Findly 換個方向：**不重做檔案瀏覽 UI**，直接把真正的 Finder 視窗變成那個抽屜。四個邊都能滑入滑出、Finder 的 sidebar / column view / 標籤頁 / 雙擊行為通通保留——因為它本來就是 Finder。
+- **側邊欄**：Favorites（桌面 / 下載 / 文件 / Dropbox / 家目錄 / 應用程式）+ Locations（啟動磁碟）
+- **多欄位**：名稱 / 大小 / 種類 / 修改日期，**點欄位標題就排序**（自然數字排序，`file2` 在 `file10` 前）
+- **Group by Kind**：像 Finder「整理方式 → 種類」那樣的靜態分區標題（資料夾 / 文件 / 影像 / 音訊 …）
+- **進資料夾**：雙擊進入下一層、左上 Back 回上層；資料夾也能用展開三角形就地展開
+- **多選**：拖曳框選 / Shift / ⌘ 點選 / ⌘A 全選
+- **右鍵選單**：開啟 / Quick Look / 在 Finder 中顯示 / 重新命名 / 移到垃圾桶
+- **空白鍵 Quick Look**、Enter 開啟
+- 應用程式合併 `/System/Applications`，symlink（如 Dropbox → CloudStorage）會解析成真實資料夾
+
+## 為什麼是這個樣子
+
+最初的方向是「不要重做檔案瀏覽 UI」——直接用 AppleScript 開一個真的 Finder 視窗，再用 Accessibility API 控制它的位置大小，把真 Finder 當抽屜。
+
+這條路能跑，但要付的代價很大：每個 Space 要自己塞一個 Finder 視窗、跨 Space 移動視窗在 SIP 下做不到、要用私有 SkyLight/CGS SPI、要分辨「我們的」視窗 vs 使用者自己的視窗、auto-park 要靠時間戳記猜意圖……複雜度全壓在「借用別人的視窗」這件事上。
+
+最後換方向：**抽屜用自己的視窗**。視窗是自己的，所以：
+
+- 一行 `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` 就出現在每個 Space，沒有 CGS 體操
+- 沒有 Apple Events、沒有 Accessibility、沒有私有 SPI、沒有 per-Space 記帳
+- 滑入/滑出動畫自己掌控，park 只是把 frame 移到螢幕外
+
+代價是檔案瀏覽 UI 得自己刻——但用 `NSOutlineView`（Finder 列表檢視的底層元件）可以做到很接近，而且換來的是乾淨非常多的架構。
 
 ## 安裝
 
@@ -31,73 +52,28 @@ cd Findly-app
 open build/Findly.app
 ```
 
-第一次跑會跳兩個系統授權對話框，都允許：
-1. **Apple Events** → 控制 Finder 視窗位置
-2. **輔助使用（Accessibility）** → 流暢的 60/120Hz 動畫
+只需要 Xcode Command Line Tools（簽章發布給別人才需要完整 Xcode）。
 
-需要安裝完整 Xcode 才能簽章發布；本機自己用只需 Command Line Tools。
+**Full Disk Access**：抽屜要瀏覽整個檔案系統，第一次啟動會引導你到「系統設定 → 隱私權與安全性 → 完全取用磁碟」把 Findly 打開。沒授權的話，TCC 保護的資料夾（桌面、文件、下載、CloudStorage/Dropbox …）會列成空的。
 
 ## 使用
 
 | 動作 | 觸發方式 |
 |---|---|
-| 召喚到某一邊 | menu bar icon → 選 Snap / ⌃⌥+方向鍵 |
-| 收起 | 點到其他 app（自動）/ 同樣的快捷鍵再按一次 |
-| 重新召喚 | 任何召喚動作；會回到上次的資料夾 |
-| 點 Dock 的 Finder | 也會把 Findly 那個視窗滑回最近的邊 |
-| 改寬高 | 拖視窗邊界，會記住，下次召喚用同樣寬度 |
-
-## 開發思路
-
-這份是我用 [Claude Code](https://claude.com/claude-code) 在一段對話裡邊聊邊做出來的。記錄一下重要的彎路：
-
-### 抽屜內容要自己刻嗎
-
-一開始走 SwiftUI 路線想做一個 `NavigationSplitView` + sidebar 的檔案瀏覽器塞進 `NSPanel`。但 macOS sandbox 下沒辦法把 Finder 的 view 嵌進別 app 的視窗，只能自己刻——刻完永遠不會跟真 Finder 一模一樣。
-
-後來退一步用 `NSBrowser`（Finder column view 的底層元件），看起來 80% 像，但搜尋、tag、context menu 還是缺。
-
-最終決定：**不要刻**。直接用 AppleScript 開一個 Finder 視窗，再用 Accessibility API 控制它的位置和大小。完全不畫自己的 UI。
-
-### 動畫怎麼跑得順
-
-AppleScript 設 bounds 每次要 ~20-50ms 的 IPC，當動畫 frame 用會卡。改用 `AXUIElementSetAttributeValue` 設 position/size——in-process call，幾乎零延遲。
-
-frame-count 迴圈（固定 20 幀）改成 time-based（用 `Date()` 算 progress），慢 tick 會自動掉幀但動畫總時長固定在 220ms。tick 間隔降到 8ms 配合 ProMotion 120Hz。
-
-AppleScript 仍作為 fallback——AX 失效（Finder 重啟、視窗關掉）時自動降級。
-
-### 怎麼知道是「我們的」視窗
-
-使用者可能同時開了很多 Finder 視窗。Findly 不能去動別人的。解法：
-
-1. 第一次召喚時 `make new Finder window`，AppleScript 回傳那個 window 的 `id`
-2. 之後所有操作都 `first Finder window whose id is N` 鎖定那一個
-3. ID 持久化在 UserDefaults，跨 app 重啟也記得
-4. 如果使用者手動關掉那個 window，下次召喚會無痛重建
-
-### 自動 park 怎麼不打架
-
-監聽 `NSWorkspace.didActivateApplicationNotification`：
-
-- 其他 app activate → park Finder（滑出邊外）
-- Finder activate → 區分是「我們」呼叫的（時間戳記 < 1 秒）還是「使用者點 Dock 的」，後者觸發 slide in
-
-### 收起時怎麼不留痕跡
-
-park 不能用「Cmd+H 隱藏 Finder」——會把使用者其他 Finder 視窗也一起隱藏。改成把 window bounds 設到螢幕外（buffer 50px 涵蓋原生陰影），視窗物理上還在、狀態完全保留，只是位置看不到。下次召喚就用原本的 window 滑回來——路徑、卷軸、選取狀態全保留。
-
-### Glow overlay 的取捨
-
-中間做過一版「Finder 視窗外圍一圈柔光」效果，當 focused state 提示。寫了 `CAShapeLayer` + mask + CGContext blur 三種實作，每一種要嘛 mask 沒生效、要嘛太吃 CPU 影響動畫。
-
-最後拿掉。Finder 自己的 window shadow + 滑入滑出動畫本身就夠提示了，多此一舉只會吃資源。
+| 召喚／收起 | menu bar icon → Toggle Drawer，或 ⌘\` |
+| 召喚到某一邊 | menu bar icon → Snap，或 ⌃⌥ + 方向鍵 |
+| 收起 | 切換到其他 app（自動），或快捷鍵再按一次 |
+| 排序 | 點欄位標題；或用 Group by Kind 分區 |
+| 進資料夾 / 回上層 | 雙擊資料夾 / 左上 Back |
+| 對檔案操作 | 右鍵：開啟 / Quick Look / 在 Finder 顯示 / 改名 / 移到垃圾桶 |
+| 改寬高 | 拖視窗內側邊界，會記住 |
 
 ## 技術棧
 
-- **Swift 6** / **AppKit**（純 system framework，沒有第三方依賴）
-- **NSAppleScript** 控制 Finder（建立 / 找窗 / 關閉）
-- **Accessibility API**（`AXUIElement`）平滑位置動畫 + 監聽使用者 resize
+- **Swift 6** / **AppKit**（純 system framework，無第三方依賴）
+- **`NSPanel`** 自繪抽屜，`collectionBehavior` 跨所有 Space
+- **`NSOutlineView`**（view-based，多欄位 + sortable headers + group rows）+ **`NSSplitView`** 側邊欄
+- **`UniformTypeIdentifiers`** 依 `UTType` 分類；**Quick Look** 預覽
 - **Carbon `RegisterEventHotKey`** 全域快捷鍵（不需新增權限）
 - **Swift Package Manager** + shell script 打 `.app` bundle + ad-hoc codesign
 - **`CGContext` + `sips` + `iconutil`** 程式化生成 icon
@@ -109,28 +85,38 @@ Findly-app/
 ├── Package.swift
 ├── Sources/Findly/
 │   ├── main.swift              # NSApplication entry
-│   ├── AppDelegate.swift       # menu bar + hotkey routing
-│   ├── FinderController.swift  # 核心：建窗 / 動畫 / 觀察者
+│   ├── AppDelegate.swift       # menu bar + 召喚路由（+ debug 視窗模式）
+│   ├── DrawerController.swift  # 滑入/滑出、auto-park、拖曳調厚度、動畫
+│   ├── DrawerWindow.swift      # 自繪 NSPanel，跨所有 Space
+│   ├── FileBrowserView.swift   # Finder 列表檢視（側邊欄 + 多欄位 + 分組 + 右鍵）
+│   ├── FullDiskAccess.swift    # 偵測 FDA 並引導
 │   ├── HotkeyManager.swift     # Carbon 全域快捷鍵
 │   ├── ScreenEdge.swift        # 邊緣 frame 計算
 │   └── Defaults.swift          # UserDefaults wrapper
-├── Resources/
-│   ├── Info.plist              # CFBundleID, usage descriptions
-│   ├── AppIcon.icns
-│   └── icon-1024.png
-├── Scripts/
-│   ├── build-app.sh            # SPM → .app bundle + codesign
-│   ├── make-icon.swift         # 程式化渲染 1024 master
-│   └── make-icon.sh            # iconset + .icns
+├── Resources/                  # Info.plist / AppIcon.icns / icon-1024.png
+├── Scripts/                    # build-app.sh / make-icon.{sh,swift}
 └── Tests/FindlyTests/
 ```
+
+## Debug 旗標
+
+| 環境變數 | 作用 |
+|---|---|
+| `FINDLY_DEBUG_AUTOSHOW=1` | 啟動後自動滑出抽屜 |
+| `FINDLY_DEBUG_NOPARK=1` | 停用 auto-park（測試時把抽屜釘住） |
+| `FINDLY_DEBUG_WINDOW=1` | 把瀏覽器放進普通視窗，繞開抽屜/FDA，方便檢視截圖 |
+| `FINDLY_DEBUG_PATH=<path>` | 指定 debug 視窗開啟的路徑 |
 
 ## 已知限制
 
 - 只在 macOS 14+ 測過，主力測試環境 macOS 26（Tahoe）
 - Ad-hoc codesign 只能自己用；給別人裝會被 Gatekeeper 擋（需要 Developer ID + notarization）
-- 視窗圓角值（macOS 26 = 22）只是接近值，沒有公開 API 拿正式值
-- Full-screen Space 切換時，Findly 的 Finder 視窗在原本的 Space 上等使用者回去
+- 檔案瀏覽器是 Finder 的「近似」，不是真 Finder——tag、標籤頁、欄位檢視等尚未實作
+- 首次啟動若還沒授權 FDA，系統設定視窗會搶走焦點、令自動彈出的抽屜立刻 park
+
+## 這個專案怎麼做出來的
+
+整個專案是用 [Claude Code](https://claude.com/claude-code) 在連續幾段對話裡邊聊邊長出來的——包含上面「驅動真 Finder → 自繪抽屜」那次架構大轉向，以及把瀏覽器從 `NSBrowser` 欄位檢視換成 `NSOutlineView` 列表檢視的反覆迭代。
 
 ## 授權
 

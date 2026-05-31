@@ -11,9 +11,9 @@
     <key>CFBundleExecutable</key>
     <string>Findly</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1</string>
+    <string>0.2.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -24,12 +24,6 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>Findly 需要 Apple Events 權限才能控制 Finder 視窗位置與大小。</string>
-    <key>NSAccessibilityUsageDescription</key>
-    <string>Findly 需要輔助使用權限才能流暢地移動 Finder 視窗。</string>
-    <key>NSAppleScriptEnabled</key>
-    <false/>
     <key>NSDesktopFolderUsageDescription</key>
     <string>Findly 需要存取桌面才能在抽屜中瀏覽這個資料夾。</string>
     <key>NSDocumentsFolderUsageDescription</key>
