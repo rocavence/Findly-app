@@ -75,7 +75,7 @@ final class DrawerController {
         window.setFrame(start, display: false)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        window.makeFirstResponder(browserView.initialFirstResponder)
+        window.makeFirstResponder(browserView.browser)
 
         animate(from: start, to: target)
         lastEdge = edge
@@ -99,9 +99,13 @@ final class DrawerController {
     // MARK: - Auto-park
 
     private func observeResignKey() {
+        // Park when the user switches to *another app*, not merely when the
+        // window loses key focus. Opening the drawer's own sort menu or a
+        // QuickLook panel resigns key but keeps the app active, so those no
+        // longer make the drawer slide away mid-interaction.
         resignKeyToken = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification,
-            object: window,
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {

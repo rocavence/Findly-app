@@ -32,30 +32,32 @@ enum FileCategory: Int, CaseIterable {
     }
 }
 
-/// A node in the outline tree: a file/folder, or a category section header
-/// (top-level only, when "Group by Kind" is on). A reference type so the outline
-/// view keeps stable item identities and we can cache lazily-loaded children.
-final class Node {
-    enum Kind { case category(FileCategory); case file(URL) }
+/// A row in a browser column: a file/folder, or a category header (shown only
+/// when "Group by Kind" is on). A reference type so `NSBrowser` sees stable item
+/// identities across its repeated `child(_:ofItem:)` calls.
+final class BrowserRow: NSObject {
+    enum Kind { case header(FileCategory); case file(URL) }
     let kind: Kind
-    fileprivate var loadedChildren: [Node]?
     init(_ kind: Kind) { self.kind = kind }
-
     var url: URL? { if case .file(let u) = kind { return u }; return nil }
-    var category: FileCategory? { if case .category(let c) = kind { return c }; return nil }
+    var isHeader: Bool { if case .header = kind { return true }; return false }
 }
 
-/// Finder list/tree navigation backed by `NSOutlineView` + FileManager. Folders
-/// expand inline with disclosure triangles; a toolbar button picks the sort key
-/// and direction and toggles category grouping, which buckets each directory
-/// under collapsible section headers.
+/// Finder-style column (Miller) navigation backed by `NSBrowser` + FileManager,
+/// with a toolbar to pick the sort key/direction and toggle category grouping.
+/// `NSBrowser` is the system control Finder's column view descends from, so we
+/// get the drill-right hierarchy, keyboard arrows and selection almost for
+/// free; we add file icons, open-on-double-click/Enter and spacebar QuickLook.
 final class FileBrowserView: NSView {
-    private let outline = FileOutlineView()
+    let browser = FileBrowser()
     private let rootURL: URL
-    private var rootNodes: [Node] = []
-
-    /// The view the controller should focus when the drawer slides in.
-    var initialFirstResponder: NSView { outline }
+    private let rootRow: BrowserRow
+    /// Cache rows per directory so `NSBrowser`'s repeated child(_:ofItem:) calls
+    /// get stable, identical item objects (and we don't re-stat on every call).
+    private var rowCache: [String: [BrowserRow]] = [:]
+    /// Toolbar button; its title reflects the active sort/group so the control
+    /// is self-explanatory.
+    private var sortButton: NSButton!
 
     /// True while a QuickLook panel we own is on screen. The controller checks
     /// this so losing key focus to QuickLook doesn't park the drawer.
@@ -67,62 +69,48 @@ final class FileBrowserView: NSView {
 
     init(root: URL) {
         self.rootURL = root
+        self.rootRow = BrowserRow(.file(root))
         super.init(frame: .zero)
 
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
-        column.resizingMask = .autoresizingMask
-        outline.addTableColumn(column)
-        outline.outlineTableColumn = column
-        outline.headerView = nil
-        outline.style = .inset
-        outline.rowSizeStyle = .default
-        outline.indentationPerLevel = 14
-        outline.floatsGroupRows = false
-        outline.allowsEmptySelection = true
-        outline.allowsMultipleSelection = false
-        outline.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
-        outline.dataSource = self
-        outline.delegate = self
-        outline.target = self
-        outline.doubleAction = #selector(handleDoubleClick)
-        outline.onSpaceKey = { [weak self] in self?.toggleQuickLook() }
-        outline.onEnterKey = { [weak self] in self?.activateSelection() }
-
-        let scroll = NSScrollView()
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.drawsBackground = false
-        scroll.documentView = outline
+        browser.translatesAutoresizingMaskIntoConstraints = false
+        browser.delegate = self
+        browser.minColumnWidth = 200
+        browser.hasHorizontalScroller = true
+        browser.autohidesScroller = true
+        browser.separatesColumns = false
+        browser.allowsEmptySelection = true
+        browser.allowsMultipleSelection = false
+        browser.target = self
+        browser.doubleAction = #selector(openSelection)
+        browser.onSpaceKey = { [weak self] in self?.toggleQuickLook() }
+        browser.onEnterKey = { [weak self] in self?.openSelection() }
 
         let toolbar = makeToolbar()
         addSubview(toolbar)
-        addSubview(scroll)
+        addSubview(browser)
         NSLayoutConstraint.activate([
             toolbar.topAnchor.constraint(equalTo: topAnchor),
             toolbar.leadingAnchor.constraint(equalTo: leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: trailingAnchor),
             toolbar.heightAnchor.constraint(equalToConstant: 34),
-            scroll.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
-            scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
-            scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
+            browser.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
+            browser.bottomAnchor.constraint(equalTo: bottomAnchor),
+            browser.leadingAnchor.constraint(equalTo: leadingAnchor),
+            browser.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
-
-        rootNodes = makeNodes(forDirectory: rootURL)
-        outline.reloadData()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    private var selectedNode: Node? {
-        let row = outline.selectedRow
+    /// URL currently selected in the deepest open column, if any. Headers have
+    /// no URL, so they never count as a selection.
+    var selectedURL: URL? {
+        let col = browser.selectedColumn
+        guard col >= 0 else { return nil }
+        let row = browser.selectedRow(inColumn: col)
         guard row >= 0 else { return nil }
-        return outline.item(atRow: row) as? Node
+        return (browser.item(atRow: row, inColumn: col) as? BrowserRow)?.url
     }
-
-    /// URL currently selected, if any. Category headers have no URL.
-    var selectedURL: URL? { selectedNode?.url }
 
     // MARK: - Toolbar (sort / group controls)
 
@@ -130,13 +118,16 @@ final class FileBrowserView: NSView {
         let bar = NSView()
         bar.translatesAutoresizingMaskIntoConstraints = false
 
-        let image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Sort")
-        let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(showSortMenu(_:)))
-        button.isBordered = false
-        button.bezelStyle = .toolbar
+        let button = NSButton(title: "", target: self, action: #selector(showSortMenu(_:)))
+        button.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Sort")
+        button.imagePosition = .imageLeading
+        button.bezelStyle = .rounded
+        button.controlSize = .small
+        button.font = .systemFont(ofSize: 11)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.toolTip = "Sort & grouping"
         bar.addSubview(button)
+        sortButton = button
 
         let separator = NSBox()
         separator.boxType = .separator
@@ -144,13 +135,21 @@ final class FileBrowserView: NSView {
         bar.addSubview(separator)
 
         NSLayoutConstraint.activate([
-            button.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -10),
+            button.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 10),
             button.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
             separator.leadingAnchor.constraint(equalTo: bar.leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: bar.trailingAnchor),
             separator.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
         ])
+        updateSortButton()
         return bar
+    }
+
+    /// Reflect the active sort key, direction and grouping in the button title.
+    private func updateSortButton() {
+        let arrow = Defaults.sortAscending ? "↑" : "↓"
+        let grouped = Defaults.groupByKind ? " · Grouped" : ""
+        sortButton.title = " \(Defaults.sortKey.title) \(arrow)\(grouped)"
     }
 
     @objc private func showSortMenu(_ sender: NSButton) {
@@ -199,36 +198,21 @@ final class FileBrowserView: NSView {
         reloadListing()
     }
 
-    /// Rebuild the whole tree with fresh nodes so re-sorting / re-grouping takes
-    /// effect at every level. Collapses expansion, which is a fair trade.
+    /// Re-sort/re-group from the root. Resets the drill-down path, which is a
+    /// fair trade for keeping selection state consistent after a reorder.
     private func reloadListing() {
-        rootNodes = makeNodes(forDirectory: rootURL)
-        outline.reloadData()
+        rowCache.removeAll()
+        browser.loadColumnZero()
+        updateSortButton()
     }
 
     // MARK: - Open / QuickLook
 
-    @objc private func handleDoubleClick() {
-        let row = outline.clickedRow
-        guard row >= 0, let node = outline.item(atRow: row) as? Node else { return }
-        open(node)
-    }
-
-    /// Enter on the selected row.
-    private func activateSelection() {
-        guard let node = selectedNode else { return }
-        open(node)
-    }
-
-    /// Files open in their app; folders and category headers toggle expansion.
-    private func open(_ node: Node) {
-        if let url = node.url, isLeaf(url) {
-            NSWorkspace.shared.open(url)
-        } else if outline.isItemExpanded(node) {
-            outline.collapseItem(node)
-        } else {
-            outline.expandItem(node)
-        }
+    @objc private func openSelection() {
+        guard let url = selectedURL else { return }
+        // Folders open as a real Finder window; files open in their app. (The
+        // column view already drills into folders on single-click.)
+        NSWorkspace.shared.open(url)
     }
 
     private func toggleQuickLook() {
@@ -252,37 +236,25 @@ final class FileBrowserView: NSView {
         let size: Int
     }
 
-    /// Top-level nodes for a directory, with the current sort/group applied.
-    /// When grouping, returns category headers each pre-loaded with their files;
-    /// otherwise a flat, folders-first list. Folder nodes load their own
-    /// children lazily via `children(of:)`.
-    private func makeNodes(forDirectory url: URL) -> [Node] {
+    private func rows(of url: URL) -> [BrowserRow] {
+        if let cached = rowCache[url.path] { return cached }
         let entries = entries(of: url)
+        let result: [BrowserRow]
         if Defaults.groupByKind {
             var buckets: [FileCategory: [Entry]] = [:]
             for entry in entries { buckets[entry.category, default: []].append(entry) }
-            return FileCategory.allCases.compactMap { category in
-                guard var items = buckets[category], !items.isEmpty else { return nil }
+            var out: [BrowserRow] = []
+            for category in FileCategory.allCases {
+                guard var items = buckets[category], !items.isEmpty else { continue }
                 items.sort(by: ordering(foldersFirst: false))
-                let node = Node(.category(category))
-                node.loadedChildren = items.map { Node(.file($0.url)) }
-                return node
+                out.append(BrowserRow(.header(category)))
+                out.append(contentsOf: items.map { BrowserRow(.file($0.url)) })
             }
+            result = out
         } else {
-            return entries.sorted(by: ordering(foldersFirst: true)).map { Node(.file($0.url)) }
+            result = entries.sorted(by: ordering(foldersFirst: true)).map { BrowserRow(.file($0.url)) }
         }
-    }
-
-    private func children(of node: Node) -> [Node] {
-        if let cached = node.loadedChildren { return cached }
-        let result: [Node]
-        switch node.kind {
-        case .category:
-            result = []   // categories are always pre-loaded in makeNodes
-        case .file(let url):
-            result = isLeaf(url) ? [] : makeNodes(forDirectory: url)
-        }
-        node.loadedChildren = result
+        rowCache[url.path] = result
         return result
     }
 
@@ -362,104 +334,77 @@ final class FileBrowserView: NSView {
     }
 
     /// Folders are branches; files and packages (.app, .rtfd, …) are leaves so
-    /// opening them launches the file instead of trying to descend.
+    /// a double-click opens them instead of trying to descend.
     private func isLeaf(_ url: URL) -> Bool {
         let vals = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
         let isDir = vals?.isDirectory ?? false
         let isPackage = vals?.isPackage ?? false
         return !isDir || isPackage
     }
+
+    /// Directory whose contents `item` represents: the root, or a folder row.
+    private func directory(for item: Any?) -> URL? {
+        guard let row = item as? BrowserRow else { return rootURL }
+        return row.url
+    }
 }
 
-// MARK: - NSOutlineView data source / delegate
+// MARK: - NSBrowserDelegate (item-based)
 
-extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
-    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        guard let node = item as? Node else { return rootNodes.count }
-        return children(of: node).count
+extension FileBrowserView: NSBrowserDelegate {
+    func rootItem(for browser: NSBrowser) -> Any? { rootRow }
+
+    func browser(_ browser: NSBrowser, numberOfChildrenOfItem item: Any?) -> Int {
+        guard let dir = directory(for: item) else { return 0 }
+        return rows(of: dir).count
     }
 
-    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        guard let node = item as? Node else { return rootNodes[index] }
-        return children(of: node)[index]
+    func browser(_ browser: NSBrowser, child index: Int, ofItem item: Any?) -> Any {
+        rows(of: directory(for: item) ?? rootURL)[index]
     }
 
-    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-        guard let node = item as? Node else { return false }
-        switch node.kind {
-        case .category:      return true
-        case .file(let url): return !isLeaf(url)
+    func browser(_ browser: NSBrowser, isLeafItem item: Any?) -> Bool {
+        guard let row = item as? BrowserRow else { return false }
+        switch row.kind {
+        case .header:        return true
+        case .file(let url): return isLeaf(url)
         }
     }
 
-    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        (item as? Node)?.category != nil
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        (item as? Node)?.category == nil
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-        guard let node = item as? Node else { return nil }
-        if let category = node.category {
-            return groupCell(outlineView, title: category.title.uppercased())
+    func browser(_ browser: NSBrowser, objectValueForItem item: Any?) -> Any? {
+        guard let row = item as? BrowserRow else { return "" }
+        switch row.kind {
+        case .header(let category):
+            return NSAttributedString(string: category.title.uppercased(), attributes: [
+                .font: NSFont.systemFont(ofSize: 10, weight: .semibold),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+        case .file(let url):
+            // The column cell is a text-only NSTextFieldCell that ignores cell
+            // images, but it does render an attributed string — so we embed the
+            // file icon as an inline text attachment ahead of the name.
+            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            icon.size = NSSize(width: 16, height: 16)
+            let attachment = NSTextAttachment()
+            attachment.image = icon
+            attachment.bounds = CGRect(x: 0, y: -3, width: 16, height: 16)
+            let result = NSMutableAttributedString(attachment: attachment)
+            result.append(NSAttributedString(string: "  " + displayName(url)))
+            return result
         }
-        return fileCell(outlineView, url: node.url!)
     }
 
-    private func fileCell(_ outlineView: NSOutlineView, url: URL) -> NSView {
-        let id = NSUserInterfaceItemIdentifier("file")
-        let cell = (outlineView.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
-            let cell = NSTableCellView()
-            cell.identifier = id
-            let icon = NSImageView()
-            icon.translatesAutoresizingMaskIntoConstraints = false
-            let label = NSTextField(labelWithString: "")
-            label.translatesAutoresizingMaskIntoConstraints = false
-            label.lineBreakMode = .byTruncatingTail
-            cell.addSubview(icon)
-            cell.addSubview(label)
-            cell.imageView = icon
-            cell.textField = label
-            NSLayoutConstraint.activate([
-                icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
-                icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                icon.widthAnchor.constraint(equalToConstant: 16),
-                icon.heightAnchor.constraint(equalToConstant: 16),
-                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
-                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            ])
-            return cell
-        }()
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
-        icon.size = NSSize(width: 16, height: 16)
-        cell.imageView?.image = icon
-        cell.textField?.stringValue = displayName(url)
-        return cell
-    }
-
-    private func groupCell(_ outlineView: NSOutlineView, title: String) -> NSView {
-        let id = NSUserInterfaceItemIdentifier("group")
-        let cell = (outlineView.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
-            let cell = NSTableCellView()
-            cell.identifier = id
-            let label = NSTextField(labelWithString: "")
-            label.translatesAutoresizingMaskIntoConstraints = false
-            label.font = .systemFont(ofSize: 10, weight: .semibold)
-            label.textColor = .secondaryLabelColor
-            cell.addSubview(label)
-            cell.textField = label
-            NSLayoutConstraint.activate([
-                label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
-                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            ])
-            return cell
-        }()
-        cell.textField?.stringValue = title
-        return cell
+    /// Disable header rows so they read as section labels and can't be selected
+    /// or drilled into.
+    func browser(_ browser: NSBrowser, willDisplayCell cell: Any, atRow row: Int, column: Int) {
+        guard let cell = cell as? NSBrowserCell,
+              let item = browser.item(atRow: row, inColumn: column) as? BrowserRow else { return }
+        if item.isHeader {
+            cell.isEnabled = false
+            cell.isLeaf = true
+        } else {
+            cell.isEnabled = true
+        }
     }
 }
 
@@ -493,9 +438,9 @@ extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     }
 }
 
-/// NSOutlineView subclass that routes the keys Finder users expect — space for
+/// NSBrowser subclass that routes the keys Finder users expect — space for
 /// QuickLook, Return to open — back to the owning view.
-final class FileOutlineView: NSOutlineView {
+final class FileBrowser: NSBrowser {
     var onSpaceKey: (() -> Void)?
     var onEnterKey: (() -> Void)?
 
