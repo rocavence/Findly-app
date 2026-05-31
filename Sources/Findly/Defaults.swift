@@ -26,6 +26,23 @@ enum Defaults {
         UserDefaults.standard.set(Double(value), forKey: "Findly.thickness.\(edge.rawValue)")
     }
 
+    // MARK: - File browser sorting / grouping
+
+    static var sortKey: FileSort {
+        get { FileSort(rawValue: UserDefaults.standard.string(forKey: "Findly.sortKey") ?? "") ?? .name }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "Findly.sortKey") }
+    }
+
+    static var sortAscending: Bool {
+        get { (UserDefaults.standard.object(forKey: "Findly.sortAscending") as? Bool) ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "Findly.sortAscending") }
+    }
+
+    static var groupByKind: Bool {
+        get { UserDefaults.standard.bool(forKey: "Findly.groupByKind") }
+        set { UserDefaults.standard.set(newValue, forKey: "Findly.groupByKind") }
+    }
+
     /// Manual override for the Finder window corner radius (set via `defaults write`).
     static var cornerRadiusOverride: CGFloat? {
         let v = UserDefaults.standard.double(forKey: "Findly.cornerRadius")
