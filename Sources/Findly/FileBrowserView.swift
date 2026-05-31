@@ -279,7 +279,8 @@ final class FileBrowserView: NSView {
     }
 
     @objc private func sidebarClicked() {
-        guard let item = sidebar.item(atRow: sidebar.selectedRow) as? SidebarItem,
+        guard sidebar.clickedRow >= 0,
+              let item = sidebar.item(atRow: sidebar.clickedRow) as? SidebarItem,
               let url = item.url else { return }
         history.removeAll()
         updateBackButton()
@@ -361,15 +362,18 @@ final class FileBrowserView: NSView {
     private func makeNodes(forDirectory url: URL) -> [Node] {
         let entries = entries(of: url)
         if Defaults.groupByKind {
+            // Finder "Arrange by Kind": static section headers as sibling rows,
+            // items listed under each — not collapsible parent nodes.
             var buckets: [FileCategory: [Entry]] = [:]
             for entry in entries { buckets[entry.category, default: []].append(entry) }
-            return FileCategory.allCases.compactMap { category in
-                guard var items = buckets[category], !items.isEmpty else { return nil }
+            var rows: [Node] = []
+            for category in FileCategory.allCases {
+                guard var items = buckets[category], !items.isEmpty else { continue }
                 items.sort(by: ordering(foldersFirst: false))
-                let node = Node(.category(category))
-                node.loadedChildren = items.map(node(from:))
-                return node
+                rows.append(Node(.category(category)))
+                rows.append(contentsOf: items.map(node(from:)))
             }
+            return rows
         } else {
             return entries.sorted(by: ordering(foldersFirst: true)).map(node(from:))
         }
@@ -407,18 +411,28 @@ final class FileBrowserView: NSView {
             options: [.skipsHiddenFiles]
         )) ?? []
         return contents.map { item in
-            let values = try? item.resourceValues(forKeys: Set(Self.resourceKeys))
-            let isFolder = (values?.isDirectory ?? false) && !(values?.isPackage ?? false)
+            let values = try? item.resourceValues(forKeys: Set(Self.resourceKeys + [.isSymbolicLinkKey]))
+            // Symlinks (e.g. ~/Dropbox) report as non-directories, so resolve to
+            // the target to classify and navigate them like the real folder.
+            let target = resolved(item, isSymlink: values?.isSymbolicLink ?? false)
+            let isFolder = (target.isDirectory ?? false) && !(target.isPackage ?? false)
             return Entry(
                 url: item,
                 isFolder: isFolder,
-                category: category(isFolder: isFolder, type: values?.contentType),
+                category: category(isFolder: isFolder, type: target.contentType),
                 name: values?.localizedName ?? item.lastPathComponent,
                 date: values?.contentModificationDate ?? .distantPast,
                 size: values?.fileSize ?? 0,
-                kindString: values?.localizedTypeDescription ?? (isFolder ? "Folder" : "")
+                kindString: target.localizedTypeDescription ?? (isFolder ? "Folder" : "")
             )
         }
+    }
+
+    /// Directory/package/type of `url`, following a symlink to its target.
+    private func resolved(_ url: URL, isSymlink: Bool) -> URLResourceValues {
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .isPackageKey, .contentTypeKey, .localizedTypeDescriptionKey]
+        let probe = isSymlink ? url.resolvingSymlinksInPath() : url
+        return (try? probe.resourceValues(forKeys: keys)) ?? URLResourceValues()
     }
 
     private func category(isFolder: Bool, type: UTType?) -> FileCategory {
@@ -472,9 +486,10 @@ final class FileBrowserView: NSView {
     }
 
     private func isLeaf(_ url: URL) -> Bool {
-        let vals = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
-        let isDir = vals?.isDirectory ?? false
-        let isPackage = vals?.isPackage ?? false
+        let isSymlink = (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink ?? false
+        let vals = resolved(url, isSymlink: isSymlink)
+        let isDir = vals.isDirectory ?? false
+        let isPackage = vals.isPackage ?? false
         return !isDir || isPackage
     }
 
@@ -531,7 +546,7 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
         if outlineView === sidebar { return (item as? SidebarItem)?.isSection ?? false }
         guard let node = item as? Node else { return false }
         switch node.kind {
-        case .category:      return true
+        case .category:      return false   // static header, never collapses
         case .file(let url): return !isLeaf(url)
         }
     }
@@ -559,8 +574,10 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
 
         let node = item as! Node
         if let category = node.category {
-            // Group section header — only in the name column.
-            guard tableColumn?.identifier.rawValue == "name" else { return nil }
+            // Group section header. NSOutlineView requests a full-width group
+            // view with a nil column; also honour the name column. Other columns
+            // get nothing so the header reads as one spanning label.
+            guard tableColumn == nil || tableColumn?.identifier.rawValue == "name" else { return nil }
             return groupCell(title: category.title.uppercased())
         }
         switch tableColumn?.identifier.rawValue {
