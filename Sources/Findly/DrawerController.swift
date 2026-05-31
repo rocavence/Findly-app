@@ -75,7 +75,7 @@ final class DrawerController {
         window.setFrame(start, display: false)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        window.makeFirstResponder(browserView.browser)
+        window.makeFirstResponder(browserView.initialFirstResponder)
 
         animate(from: start, to: target)
         lastEdge = edge
