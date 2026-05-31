@@ -31,8 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showDebugWindow() {
         NSApp.setActivationPolicy(.regular)
-        let root = (try? FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false))
-            ?? FileManager.default.homeDirectoryForCurrentUser
+        let root: URL
+        if let path = ProcessInfo.processInfo.environment["FINDLY_DEBUG_PATH"] {
+            root = URL(fileURLWithPath: path)
+        } else {
+            root = (try? FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false))
+                ?? FileManager.default.homeDirectoryForCurrentUser
+        }
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 920, height: 660),
             styleMask: [.titled, .closable, .resizable],

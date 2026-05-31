@@ -181,7 +181,7 @@ final class FileBrowserView: NSView {
         content.floatsGroupRows = false
         content.allowsColumnReordering = false
         content.allowsEmptySelection = true
-        content.allowsMultipleSelection = false
+        content.allowsMultipleSelection = true
         content.dataSource = self
         content.delegate = self
         content.target = self
@@ -347,6 +347,11 @@ final class FileBrowserView: NSView {
 
     var selectedURL: URL? { selectedNode?.url }
 
+    /// Every selected file/folder (multi-selection), in row order.
+    private var selectedURLs: [URL] {
+        content.selectedRowIndexes.compactMap { (content.item(atRow: $0) as? Node)?.url }
+    }
+
     // MARK: - Directory listing
 
     private struct Entry {
@@ -405,12 +410,14 @@ final class FileBrowserView: NSView {
     ]
 
     private func entries(of url: URL) -> [Entry] {
-        let contents = (try? FileManager.default.contentsOfDirectory(
-            at: url,
-            includingPropertiesForKeys: Self.resourceKeys,
-            options: [.skipsHiddenFiles]
-        )) ?? []
-        return contents.map { item in
+        let contents = sourceDirectories(for: url).flatMap { dir in
+            (try? FileManager.default.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: Self.resourceKeys,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+        }
+        let entries: [Entry] = contents.map { item in
             let values = try? item.resourceValues(forKeys: Set(Self.resourceKeys + [.isSymbolicLinkKey]))
             // Symlinks (e.g. ~/Dropbox) report as non-directories, so resolve to
             // the target to classify and navigate them like the real folder.
@@ -426,6 +433,9 @@ final class FileBrowserView: NSView {
                 kindString: target.localizedTypeDescription ?? (isFolder ? "Folder" : "")
             )
         }
+        // Dedupe by name — the Applications merge can surface two "Utilities".
+        var seen = Set<String>()
+        return entries.filter { seen.insert($0.name).inserted }
     }
 
     /// Directory/package/type of `url`, following a symlink to its target.
@@ -433,6 +443,16 @@ final class FileBrowserView: NSView {
         let keys: Set<URLResourceKey> = [.isDirectoryKey, .isPackageKey, .contentTypeKey, .localizedTypeDescriptionKey]
         let probe = isSymlink ? url.resolvingSymlinksInPath() : url
         return (try? probe.resourceValues(forKeys: keys)) ?? URLResourceValues()
+    }
+
+    /// Directories whose contents make up a folder. Normally just the folder
+    /// itself, but "Applications" merges /System/Applications too, the way
+    /// Finder's Applications view shows both third-party and system apps.
+    private func sourceDirectories(for url: URL) -> [URL] {
+        if url.path == "/Applications" {
+            return [url, URL(fileURLWithPath: "/System/Applications")]
+        }
+        return [url]
     }
 
     private func category(isFolder: Bool, type: UTType?) -> FileCategory {
@@ -582,7 +602,7 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
         }
         switch tableColumn?.identifier.rawValue {
         case "name": return nameCell(url: node.url!)
-        case "size": return textCell(node.isFolder ? "--" : Self.byteFormatter.string(fromByteCount: Int64(node.size)),
+        case "size": return textCell((node.isFolder || node.size == 0) ? "--" : Self.byteFormatter.string(fromByteCount: Int64(node.size)),
                                       align: .right, secondary: true)
         case "kind": return textCell(node.kindString, secondary: true)
         case "date": return textCell(node.date == .distantPast ? "" : Self.dateFormatter.string(from: node.date),
@@ -732,11 +752,14 @@ extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     }
 
     nonisolated func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
-        MainActor.assumeIsolated { selectedURL == nil ? 0 : 1 }
+        MainActor.assumeIsolated { selectedURLs.count }
     }
 
     nonisolated func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
-        MainActor.assumeIsolated { selectedURL as NSURL? }
+        MainActor.assumeIsolated { () -> NSURL? in
+            let urls = selectedURLs
+            return index < urls.count ? (urls[index] as NSURL) : nil
+        }
     }
 }
 
