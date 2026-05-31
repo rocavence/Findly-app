@@ -30,5 +30,13 @@
     <string>Findly 需要輔助使用權限才能流暢地移動 Finder 視窗。</string>
     <key>NSAppleScriptEnabled</key>
     <false/>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Findly 需要存取桌面才能在抽屜中瀏覽這個資料夾。</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Findly 需要存取文件才能在抽屜中瀏覽這個資料夾。</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Findly 需要存取下載才能在抽屜中瀏覽這個資料夾。</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Findly 需要存取外接磁碟才能在抽屜中瀏覽其內容。</string>
 </dict>
 </plist>

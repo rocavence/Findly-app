@@ -62,16 +62,27 @@ ctx.drawLinearGradient(
 )
 ctx.restoreGState()
 
-// Inner "window" sliding out from the right edge of the squircle.
-let winHeight: CGFloat = squircleRect.height * 0.62
-let winWidth:  CGFloat = squircleRect.width  * 0.50
+// Inner drawer sliding out from the right edge of the squircle. Inside it we
+// paint a Miller-column file browser so the icon reads as what Findly is — a
+// drawer of files — not just a blank window.
+let winHeight: CGFloat = squircleRect.height * 0.68
+let winWidth:  CGFloat = squircleRect.width  * 0.66
 let winY = squircleRect.midY - winHeight / 2
-let winX = squircleRect.maxX - winWidth + 88   // sticks past the right edge
+let winX = squircleRect.maxX - winWidth + 60   // sticks past the right edge
 let winRect = CGRect(x: winX, y: winY, width: winWidth, height: winHeight)
 let winCorner: CGFloat = 72
 let winPath = CGPath(roundedRect: winRect, cornerWidth: winCorner, cornerHeight: winCorner, transform: nil)
 
-// Clip everything we draw next to the squircle so the window is partially hidden.
+// Brand blue reused for the selection highlight and a file accent.
+let brandBlue = NSColor(red: 0.16, green: 0.55, blue: 1.00, alpha: 1.0)
+
+func fillRoundedRect(_ r: CGRect, radius: CGFloat, color: NSColor) {
+    ctx.setFillColor(color.cgColor)
+    ctx.addPath(CGPath(roundedRect: r, cornerWidth: radius, cornerHeight: radius, transform: nil))
+    ctx.fillPath()
+}
+
+// Clip everything we draw next to the squircle so the drawer is partially hidden.
 ctx.saveGState()
 ctx.addPath(squirclePath)
 ctx.clip()
@@ -79,24 +90,96 @@ ctx.clip()
 // Soft drop shadow toward the lower-left for depth.
 ctx.saveGState()
 ctx.setShadow(
-    offset: CGSize(width: -10, height: -18),
-    blur: 36,
-    color: NSColor.black.withAlphaComponent(0.35).cgColor
+    offset: CGSize(width: -12, height: -20),
+    blur: 40,
+    color: NSColor.black.withAlphaComponent(0.32).cgColor
 )
-ctx.setFillColor(NSColor.white.withAlphaComponent(0.97).cgColor)
+ctx.setFillColor(NSColor(white: 0.98, alpha: 1.0).cgColor)
 ctx.addPath(winPath)
 ctx.fillPath()
 ctx.restoreGState()
 
-// A faint horizontal "title bar" stripe to read as a window.
-let titleRect = CGRect(x: winRect.minX, y: winRect.maxY - 78, width: winRect.width, height: 78)
+// Everything from here is clipped to the drawer's rounded shape.
 ctx.saveGState()
 ctx.addPath(winPath)
 ctx.clip()
-ctx.setFillColor(NSColor(white: 0.88, alpha: 1.0).cgColor)
-ctx.fill(titleRect)
-ctx.restoreGState()
 
+// Title bar with a search pill — a nod to "Find"ly.
+let titleH: CGFloat = 116
+let titleRect = CGRect(x: winRect.minX, y: winRect.maxY - titleH, width: winRect.width, height: titleH)
+ctx.setFillColor(NSColor(white: 0.93, alpha: 1.0).cgColor)
+ctx.fill(titleRect)
+// Hairline under the title bar.
+ctx.setFillColor(NSColor(white: 0.80, alpha: 1.0).cgColor)
+ctx.fill(CGRect(x: titleRect.minX, y: titleRect.minY, width: titleRect.width, height: 3))
+
+// Content geometry: anchor to the visible (un-clipped) part of the drawer.
+let pad: CGFloat = 46
+let contentMinX = winRect.minX + pad
+let contentMaxX = squircleRect.maxX - pad
+let contentWidth = contentMaxX - contentMinX
+
+// Search pill in the title bar.
+let pillH: CGFloat = 60
+let pillRect = CGRect(x: contentMinX, y: titleRect.midY - pillH / 2, width: contentWidth, height: pillH)
+fillRoundedRect(pillRect, radius: pillH / 2, color: NSColor(white: 0.99, alpha: 1.0))
+// Magnifier glyph: a small ring + handle on the left of the pill.
+ctx.setStrokeColor(brandBlue.cgColor)
+ctx.setLineCap(.round)
+let ringR: CGFloat = 15
+let ringC = CGPoint(x: pillRect.minX + 34, y: pillRect.midY)
+ctx.setLineWidth(7)
+ctx.strokeEllipse(in: CGRect(x: ringC.x - ringR, y: ringC.y - ringR, width: ringR * 2, height: ringR * 2))
+ctx.move(to: CGPoint(x: ringC.x + ringR * 0.72, y: ringC.y - ringR * 0.72))
+ctx.addLine(to: CGPoint(x: ringC.x + ringR * 1.5, y: ringC.y - ringR * 1.5))
+ctx.strokePath()
+
+// Two Miller columns of file rows below the title bar.
+let colGap: CGFloat = 28
+let col1Width = contentWidth * 0.52
+let col2X = contentMinX + col1Width + colGap
+let col2Width = contentMaxX - col2X
+
+let rowH: CGFloat = 56
+let rowGap: CGFloat = 26
+let rowRadius: CGFloat = 14
+let listTop = titleRect.minY - 40          // first row's top edge
+let iconSize: CGFloat = 38
+
+func drawRow(x: CGFloat, top: CGFloat, width: CGFloat,
+             selected: Bool, iconColor: NSColor) {
+    let rowRect = CGRect(x: x - 14, y: top - rowH, width: width + 28, height: rowH)
+    if selected {
+        fillRoundedRect(rowRect, radius: rowRadius, color: brandBlue)
+    }
+    // File icon swatch.
+    let iconRect = CGRect(x: x, y: rowRect.midY - iconSize / 2, width: iconSize, height: iconSize)
+    fillRoundedRect(iconRect, radius: 8, color: selected ? NSColor.white : iconColor)
+    // File name bar.
+    let barH: CGFloat = 18
+    let barX = iconRect.maxX + 20
+    let barRect = CGRect(x: barX, y: rowRect.midY - barH / 2, width: x + width - barX, height: barH)
+    fillRoundedRect(barRect, radius: barH / 2,
+                    color: selected ? NSColor.white : NSColor(white: 0.78, alpha: 1.0))
+}
+
+let col1Icons = [brandBlue, NSColor(white: 0.72, alpha: 1.0), NSColor(white: 0.72, alpha: 1.0),
+                 NSColor(red: 0.45, green: 0.78, blue: 0.42, alpha: 1.0), NSColor(white: 0.72, alpha: 1.0)]
+for (i, color) in col1Icons.enumerated() {
+    let top = listTop - CGFloat(i) * (rowH + rowGap)
+    drawRow(x: contentMinX, top: top, width: col1Width - 14, selected: i == 1, iconColor: color)
+}
+
+// Second column (the drilled-into folder) — fewer rows, lighter.
+let col2Icons = [NSColor(white: 0.72, alpha: 1.0),
+                 NSColor(red: 1.00, green: 0.74, blue: 0.30, alpha: 1.0),
+                 NSColor(white: 0.72, alpha: 1.0)]
+for (i, color) in col2Icons.enumerated() {
+    let top = listTop - CGFloat(i) * (rowH + rowGap)
+    drawRow(x: col2X, top: top, width: col2Width - 14, selected: false, iconColor: color)
+}
+
+ctx.restoreGState() // end drawer clip
 ctx.restoreGState() // end squircle clip
 
 // Save PNG.

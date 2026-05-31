@@ -31,4 +31,18 @@ enum Defaults {
         let v = UserDefaults.standard.double(forKey: "Findly.cornerRadius")
         return v > 0 ? CGFloat(v) : nil
     }
+
+    /// POSIX path the managed window was last viewing. Used to restore the
+    /// folder when we close the window on a Space change and recreate it
+    /// on the user's new Space.
+    static var savedTargetPath: String? {
+        get { UserDefaults.standard.string(forKey: "Findly.savedTargetPath") }
+        set {
+            if let v = newValue, !v.isEmpty {
+                UserDefaults.standard.set(v, forKey: "Findly.savedTargetPath")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "Findly.savedTargetPath")
+            }
+        }
+    }
 }

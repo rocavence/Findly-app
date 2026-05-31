@@ -3,11 +3,17 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
-    private var controller: FinderController!
+    private var controller: DrawerController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        controller = FinderController()
+        controller = DrawerController()
         setupStatusBar()
+        FullDiskAccess.promptIfNeeded()
+        if ProcessInfo.processInfo.environment["FINDLY_DEBUG_AUTOSHOW"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                self?.controller.toggleDefault()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -19,9 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Findly")
 
         let menu = NSMenu()
+        let toggle = NSMenuItem(title: "Toggle Drawer", action: #selector(toggleDrawer), keyEquivalent: "`")
+        toggle.keyEquivalentModifierMask = [.command]
+        toggle.target = self
+        menu.addItem(toggle)
+        menu.addItem(.separator())
         for edge in ScreenEdge.allCases {
             let item = NSMenuItem(
-                title: "Snap Finder \(edge.rawValue.capitalized)",
+                title: "Snap \(edge.rawValue.capitalized)",
                 action: #selector(snap(_:)),
                 keyEquivalent: edge.menuKeyEquivalent
             )
@@ -42,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let edge = ScreenEdge(rawValue: raw) else { return }
         controller.toggle(edge: edge)
     }
+
+    @objc private func toggleDrawer() { controller.toggleDefault() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

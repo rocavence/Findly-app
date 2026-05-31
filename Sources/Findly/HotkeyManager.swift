@@ -6,12 +6,15 @@ final class HotkeyManager {
     typealias Handler = @MainActor (ScreenEdge) -> Void
 
     private let handler: Handler
+    private let toggleHandler: (@MainActor () -> Void)?
     private var hotkeyRefs: [EventHotKeyRef] = []
     private var eventHandlerRef: EventHandlerRef?
     private let signature: OSType = 0x46_4e_44_4c // 'FNDL'
+    private let toggleHotkeyID: UInt32 = 5
 
-    init(handler: @escaping Handler) {
+    init(handler: @escaping Handler, toggle: (@MainActor () -> Void)? = nil) {
         self.handler = handler
+        self.toggleHandler = toggle
         installEventHandler()
         registerHotkeys()
     }
@@ -24,6 +27,10 @@ final class HotkeyManager {
     }
 
     fileprivate func dispatch(id: UInt32) {
+        if id == toggleHotkeyID {
+            toggleHandler?()
+            return
+        }
         guard let edge = HotkeyManager.edges[safe: Int(id) - 1] else { return }
         handler(edge)
     }
@@ -56,6 +63,21 @@ final class HotkeyManager {
                 hotkeyRefs.append(ref)
             } else {
                 NSLog("Findly: failed to register hotkey id=\(id), status=\(status)")
+            }
+        }
+
+        // ⌘` → toggle the drawer on its last-used edge.
+        if toggleHandler != nil {
+            var ref: EventHotKeyRef?
+            let hotKeyID = EventHotKeyID(signature: signature, id: toggleHotkeyID)
+            let status = RegisterEventHotKey(
+                UInt32(kVK_ANSI_Grave), UInt32(cmdKey), hotKeyID,
+                GetApplicationEventTarget(), 0, &ref
+            )
+            if status == noErr, let ref {
+                hotkeyRefs.append(ref)
+            } else {
+                NSLog("Findly: failed to register ⌘` toggle hotkey, status=\(status)")
             }
         }
     }
