@@ -44,22 +44,6 @@ final class FileBrowserView: NSView {
             browser.leadingAnchor.constraint(equalTo: leadingAnchor),
             browser.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
-
-        if ProcessInfo.processInfo.environment["FINDLY_DEBUG_AUTOSHOW"] != nil {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) { [weak self] in self?.debugInspectCell() }
-        }
-    }
-
-    private func debugInspectCell() {
-        guard let cell = browser.loadedCell(atRow: 0, column: 0) as? NSCell else {
-            NSLog("Findly DEBUG no loaded cell"); return
-        }
-        let attr = cell.attributedStringValue
-        var hasAttachment = false
-        attr.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attr.length)) { v, _, _ in
-            if v != nil { hasAttachment = true }
-        }
-        NSLog("Findly DEBUG cell=\(type(of: cell)) ovType=\(type(of: cell.objectValue as Any)) attrLen=\(attr.length) hasAttachment=\(hasAttachment) str=[\(attr.string)]")
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -99,9 +83,18 @@ final class FileBrowserView: NSView {
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles]
         )) ?? []
-        let sorted = contents.sorted {
-            $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending
+        // Finder-like ordering: folders grouped ahead of files, each group sorted
+        // by localized name with natural number ordering ("file2" before "file10").
+        // Decorate once so the comparator doesn't re-hit the filesystem per pair.
+        let decorated = contents.map { item -> (url: URL, isFolder: Bool, name: String) in
+            let vals = try? item.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey, .localizedNameKey])
+            let isFolder = (vals?.isDirectory ?? false) && !(vals?.isPackage ?? false)
+            return (item, isFolder, vals?.localizedName ?? item.lastPathComponent)
         }
+        let sorted = decorated.sorted { a, b in
+            if a.isFolder != b.isFolder { return a.isFolder }   // folders first
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }.map(\.url)
         childrenCache[url.path] = sorted
         return sorted
     }

@@ -112,6 +112,8 @@ final class DrawerController {
 
     private func handleResignKey() {
         guard let edge = lastEdge, !isParked, !isAnimating else { return }
+        // Debug/testing: keep the drawer pinned open across focus changes.
+        if ProcessInfo.processInfo.environment["FINDLY_DEBUG_NOPARK"] != nil { return }
         // Don't park when focus left only because a QuickLook panel we drove
         // took over — the drawer should still be sitting there behind it.
         if browserView.isQuickLookActive { return }
