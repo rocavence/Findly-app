@@ -466,8 +466,10 @@ final class FileBrowserView: NSView {
 
     private func entries(of url: URL) -> [Entry] {
         let contents = sourceDirectories(for: url).flatMap { dir in
+            // Resolve symlinks first: listing ~/Dropbox (a link into
+            // ~/Library/CloudStorage) returns nothing, but the resolved path lists.
             (try? FileManager.default.contentsOfDirectory(
-                at: dir,
+                at: dir.resolvingSymlinksInPath(),
                 includingPropertiesForKeys: Self.resourceKeys,
                 options: [.skipsHiddenFiles]
             )) ?? []
