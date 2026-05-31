@@ -4,8 +4,17 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var controller: DrawerController!
+    private var debugWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Debug/testing: show the browser in an ordinary window, bypassing the
+        // sliding drawer, FDA prompt and status bar — so it can be inspected and
+        // screenshotted without fighting focus/park behavior.
+        if ProcessInfo.processInfo.environment["FINDLY_DEBUG_WINDOW"] != nil {
+            showDebugWindow()
+            return
+        }
+
         controller = DrawerController()
         setupStatusBar()
         FullDiskAccess.promptIfNeeded()
@@ -17,7 +26,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        controller.shutdown()
+        controller?.shutdown()
+    }
+
+    private func showDebugWindow() {
+        NSApp.setActivationPolicy(.regular)
+        let root = (try? FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false))
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 920, height: 660),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered, defer: false
+        )
+        window.title = "Findly (debug)"
+        window.contentView = FileBrowserView(root: root)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        debugWindow = window
     }
 
     private func setupStatusBar() {

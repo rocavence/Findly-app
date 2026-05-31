@@ -2,7 +2,8 @@ import AppKit
 import Quartz
 import UniformTypeIdentifiers
 
-/// How a column's entries are ordered. Raw value persists in `Defaults`.
+/// How the list is ordered. Raw value persists in `Defaults`; `columnKey`
+/// bridges to the clickable `NSTableColumn` sort descriptors.
 enum FileSort: String, CaseIterable {
     case name, dateModified, size, kind
     var title: String {
@@ -12,6 +13,15 @@ enum FileSort: String, CaseIterable {
         case .size:         return "Size"
         case .kind:         return "Kind"
         }
+    }
+    var columnKey: String {
+        switch self {
+        case .name: return "name"; case .dateModified: return "date"
+        case .size: return "size"; case .kind: return "kind"
+        }
+    }
+    init(columnKey: String) {
+        self = FileSort.allCases.first { $0.columnKey == columnKey } ?? .name
     }
 }
 
@@ -32,35 +42,61 @@ enum FileCategory: Int, CaseIterable {
     }
 }
 
-/// A row in a browser column: a file/folder, or a category header (shown only
-/// when "Group by Kind" is on). A reference type so `NSBrowser` sees stable item
-/// identities across its repeated `child(_:ofItem:)` calls.
-final class BrowserRow: NSObject {
-    enum Kind { case header(FileCategory); case file(URL) }
+/// A node in the list/tree: a file/folder, or a category section header (shown
+/// when "Group by Kind" is on). Reference type so the outline view keeps stable
+/// item identities and we can cache lazily-loaded children + stat'd metadata.
+final class Node {
+    enum Kind { case category(FileCategory); case file(URL) }
     let kind: Kind
+    var loadedChildren: [Node]?
+    // File metadata (defaults for category rows).
+    var isFolder = false
+    var size = 0
+    var date = Date.distantPast
+    var kindString = ""
     init(_ kind: Kind) { self.kind = kind }
+
     var url: URL? { if case .file(let u) = kind { return u }; return nil }
-    var isHeader: Bool { if case .header = kind { return true }; return false }
+    var category: FileCategory? { if case .category(let c) = kind { return c }; return nil }
 }
 
-/// Finder-style column (Miller) navigation backed by `NSBrowser` + FileManager,
-/// with a toolbar to pick the sort key/direction and toggle category grouping.
-/// `NSBrowser` is the system control Finder's column view descends from, so we
-/// get the drill-right hierarchy, keyboard arrows and selection almost for
-/// free; we add file icons, open-on-double-click/Enter and spacebar QuickLook.
-final class FileBrowserView: NSView {
-    let browser = FileBrowser()
-    private let rootURL: URL
-    private let rootRow: BrowserRow
-    /// Cache rows per directory so `NSBrowser`'s repeated child(_:ofItem:) calls
-    /// get stable, identical item objects (and we don't re-stat on every call).
-    private var rowCache: [String: [BrowserRow]] = [:]
-    /// Toolbar button; its title reflects the active sort/group so the control
-    /// is self-explanatory.
-    private var sortButton: NSButton!
+/// One sidebar entry: a standard location, or a section header.
+private struct SidebarItem {
+    let title: String
+    let url: URL?
+    let icon: NSImage?
+    let isSection: Bool
+    var children: [SidebarItem] = []
+}
 
-    /// True while a QuickLook panel we own is on screen. The controller checks
-    /// this so losing key focus to QuickLook doesn't park the drawer.
+/// Finder list-view navigation: a sidebar of standard locations beside a
+/// multi-column `NSOutlineView` (Name / Size / Kind / Date) with clickable
+/// sortable headers, inline folder expansion, and collapsible "Group by Kind"
+/// section headers.
+final class FileBrowserView: NSView {
+    private let content = FileOutlineView()
+    private let sidebar = NSOutlineView()
+    private var rootURL: URL
+    private var rootNodes: [Node] = []
+    private var sidebarItems: [SidebarItem] = []
+    private var titleLabel: NSTextField!
+    private var backButton: NSButton!
+    /// Folders we navigated out of, newest last; powers the Back button.
+    private var history: [URL] = []
+
+    private static let byteFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter(); f.countStyle = .file; return f
+    }()
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium; f.timeStyle = .short
+        f.doesRelativeDateFormatting = true
+        return f
+    }()
+
+    /// The view the controller should focus when the drawer slides in.
+    var initialFirstResponder: NSView { content }
+
     var isQuickLookActive: Bool {
         guard QLPreviewPanel.sharedPreviewPanelExists(),
               let panel = QLPreviewPanel.shared() else { return false }
@@ -69,65 +105,137 @@ final class FileBrowserView: NSView {
 
     init(root: URL) {
         self.rootURL = root
-        self.rootRow = BrowserRow(.file(root))
         super.init(frame: .zero)
 
-        browser.translatesAutoresizingMaskIntoConstraints = false
-        browser.delegate = self
-        browser.minColumnWidth = 200
-        browser.hasHorizontalScroller = true
-        browser.autohidesScroller = true
-        browser.separatesColumns = false
-        browser.allowsEmptySelection = true
-        browser.allowsMultipleSelection = false
-        browser.target = self
-        browser.doubleAction = #selector(openSelection)
-        browser.onSpaceKey = { [weak self] in self?.toggleQuickLook() }
-        browser.onEnterKey = { [weak self] in self?.openSelection() }
+        sidebarItems = makeSidebarItems()
+        configureContent()
+        configureSidebar()
 
         let toolbar = makeToolbar()
+        let sidebarScroll = scrolled(sidebar, drawsBackground: false)
+        let contentScroll = scrolled(content, drawsBackground: false)
+        let split = NSSplitView()
+        split.translatesAutoresizingMaskIntoConstraints = false
+        split.isVertical = true
+        split.dividerStyle = .thin
+        split.addArrangedSubview(sidebarScroll)
+        split.addArrangedSubview(contentScroll)
+        // Without this the sidebar pane grabs the whole width and the file list
+        // collapses to nothing. Pin the sidebar narrow; the list takes the rest.
+        sidebarScroll.widthAnchor.constraint(equalToConstant: 170).isActive = true
+        split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
+        split.setHoldingPriority(.defaultLow, forSubviewAt: 1)
+
         addSubview(toolbar)
-        addSubview(browser)
+        addSubview(split)
         NSLayoutConstraint.activate([
             toolbar.topAnchor.constraint(equalTo: topAnchor),
             toolbar.leadingAnchor.constraint(equalTo: leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: trailingAnchor),
-            toolbar.heightAnchor.constraint(equalToConstant: 34),
-            browser.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
-            browser.bottomAnchor.constraint(equalTo: bottomAnchor),
-            browser.leadingAnchor.constraint(equalTo: leadingAnchor),
-            browser.trailingAnchor.constraint(equalTo: trailingAnchor),
+            toolbar.heightAnchor.constraint(equalToConstant: 38),
+            split.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
+            split.bottomAnchor.constraint(equalTo: bottomAnchor),
+            split.leadingAnchor.constraint(equalTo: leadingAnchor),
+            split.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
+
+        loadRoot(rootURL)
+        sidebar.reloadData()
+        sidebar.expandItem(nil, expandChildren: true)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// URL currently selected in the deepest open column, if any. Headers have
-    /// no URL, so they never count as a selection.
-    var selectedURL: URL? {
-        let col = browser.selectedColumn
-        guard col >= 0 else { return nil }
-        let row = browser.selectedRow(inColumn: col)
-        guard row >= 0 else { return nil }
-        return (browser.item(atRow: row, inColumn: col) as? BrowserRow)?.url
+    private func scrolled(_ view: NSView, drawsBackground: Bool) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = drawsBackground
+        scroll.documentView = view
+        return scroll
     }
 
-    // MARK: - Toolbar (sort / group controls)
+    // MARK: - Content list configuration
+
+    private func configureContent() {
+        let columns: [(key: String, title: String, width: CGFloat, min: CGFloat)] = [
+            ("name", "Name", 240, 120),
+            ("size", "Size", 76, 60),
+            ("kind", "Kind", 120, 80),
+            ("date", "Date Modified", 160, 120),
+        ]
+        for spec in columns {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(spec.key))
+            column.title = spec.title
+            column.width = spec.width
+            column.minWidth = spec.min
+            column.sortDescriptorPrototype = NSSortDescriptor(key: spec.key, ascending: true)
+            content.addTableColumn(column)
+            if spec.key == "name" { content.outlineTableColumn = column }
+        }
+        content.style = .plain
+        content.rowSizeStyle = .default
+        content.usesAlternatingRowBackgroundColors = false
+        content.gridStyleMask = []
+        content.indentationPerLevel = 14
+        content.floatsGroupRows = false
+        content.allowsColumnReordering = false
+        content.allowsEmptySelection = true
+        content.allowsMultipleSelection = false
+        content.dataSource = self
+        content.delegate = self
+        content.target = self
+        content.doubleAction = #selector(handleDoubleClick)
+        content.onSpaceKey = { [weak self] in self?.toggleQuickLook() }
+        content.onEnterKey = { [weak self] in self?.activateSelection() }
+        content.sortDescriptors = [NSSortDescriptor(key: Defaults.sortKey.columnKey,
+                                                     ascending: Defaults.sortAscending)]
+    }
+
+    private func configureSidebar() {
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("sidebar"))
+        sidebar.addTableColumn(column)
+        sidebar.outlineTableColumn = column
+        sidebar.headerView = nil
+        sidebar.style = .sourceList
+        sidebar.floatsGroupRows = false
+        sidebar.indentationPerLevel = 6
+        sidebar.allowsEmptySelection = true
+        sidebar.rowSizeStyle = .default
+        sidebar.dataSource = self
+        sidebar.delegate = self
+        sidebar.target = self
+        sidebar.action = #selector(sidebarClicked)
+    }
+
+    // MARK: - Toolbar
 
     private func makeToolbar() -> NSView {
         let bar = NSView()
         bar.translatesAutoresizingMaskIntoConstraints = false
 
-        let button = NSButton(title: "", target: self, action: #selector(showSortMenu(_:)))
-        button.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Sort")
-        button.imagePosition = .imageLeading
-        button.bezelStyle = .rounded
-        button.controlSize = .small
-        button.font = .systemFont(ofSize: 11)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.toolTip = "Sort & grouping"
-        bar.addSubview(button)
-        sortButton = button
+        let back = NSButton(image: NSImage(systemSymbolName: "chevron.backward", accessibilityDescription: "Back") ?? NSImage(),
+                            target: self, action: #selector(goBack))
+        back.bezelStyle = .toolbar
+        back.imageScaling = .scaleProportionallyDown
+        back.isEnabled = false
+        back.translatesAutoresizingMaskIntoConstraints = false
+        back.toolTip = "Back"
+        bar.addSubview(back)
+        backButton = back
+
+        titleLabel = NSTextField(labelWithString: "")
+        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        bar.addSubview(titleLabel)
+
+        let group = NSButton(checkboxWithTitle: "Group by Kind", target: self, action: #selector(toggleGroup))
+        group.state = Defaults.groupByKind ? .on : .off
+        group.controlSize = .small
+        group.font = .systemFont(ofSize: 11)
+        group.translatesAutoresizingMaskIntoConstraints = false
+        bar.addSubview(group)
 
         let separator = NSBox()
         separator.boxType = .separator
@@ -135,84 +243,90 @@ final class FileBrowserView: NSView {
         bar.addSubview(separator)
 
         NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 10),
-            button.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
+            back.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 8),
+            back.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
+            back.widthAnchor.constraint(equalToConstant: 26),
+            titleLabel.leadingAnchor.constraint(equalTo: back.trailingAnchor, constant: 6),
+            titleLabel.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
+            group.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -12),
+            group.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: group.leadingAnchor, constant: -8),
             separator.leadingAnchor.constraint(equalTo: bar.leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: bar.trailingAnchor),
             separator.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
         ])
-        updateSortButton()
         return bar
     }
 
-    /// Reflect the active sort key, direction and grouping in the button title.
-    private func updateSortButton() {
-        let arrow = Defaults.sortAscending ? "↑" : "↓"
-        let grouped = Defaults.groupByKind ? " · Grouped" : ""
-        sortButton.title = " \(Defaults.sortKey.title) \(arrow)\(grouped)"
-    }
-
-    @objc private func showSortMenu(_ sender: NSButton) {
-        let menu = NSMenu()
-
-        let header = NSMenuItem(title: "Sort By", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        menu.addItem(header)
-        for (index, sort) in FileSort.allCases.enumerated() {
-            let item = NSMenuItem(title: sort.title, action: #selector(pickSort(_:)), keyEquivalent: "")
-            item.target = self
-            item.tag = index
-            item.state = (sort == Defaults.sortKey) ? .on : .off
-            menu.addItem(item)
-        }
-
-        menu.addItem(.separator())
-        let reversed = NSMenuItem(title: "Descending", action: #selector(toggleReversed(_:)), keyEquivalent: "")
-        reversed.target = self
-        reversed.state = Defaults.sortAscending ? .off : .on
-        menu.addItem(reversed)
-
-        menu.addItem(.separator())
-        let group = NSMenuItem(title: "Group by Kind", action: #selector(toggleGroup(_:)), keyEquivalent: "")
-        group.target = self
-        group.state = Defaults.groupByKind ? .on : .off
-        menu.addItem(group)
-
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
-    }
-
-    @objc private func pickSort(_ sender: NSMenuItem) {
-        let all = FileSort.allCases
-        guard all.indices.contains(sender.tag) else { return }
-        Defaults.sortKey = all[sender.tag]
+    @objc private func toggleGroup(_ sender: NSButton) {
+        Defaults.groupByKind = (sender.state == .on)
         reloadListing()
     }
 
-    @objc private func toggleReversed(_ sender: NSMenuItem) {
-        Defaults.sortAscending.toggle()
+    // MARK: - Roots & reload
+
+    private func loadRoot(_ url: URL) {
+        rootURL = url
+        titleLabel.stringValue = displayName(url)
         reloadListing()
     }
 
-    @objc private func toggleGroup(_ sender: NSMenuItem) {
-        Defaults.groupByKind.toggle()
-        reloadListing()
-    }
-
-    /// Re-sort/re-group from the root. Resets the drill-down path, which is a
-    /// fair trade for keeping selection state consistent after a reorder.
+    /// Rebuild the tree with fresh nodes so re-sorting/grouping applies at every
+    /// level. Collapses expansion, a fair trade for consistent selection.
     private func reloadListing() {
-        rowCache.removeAll()
-        browser.loadColumnZero()
-        updateSortButton()
+        rootNodes = makeNodes(forDirectory: rootURL)
+        content.reloadData()
+    }
+
+    @objc private func sidebarClicked() {
+        guard let item = sidebar.item(atRow: sidebar.selectedRow) as? SidebarItem,
+              let url = item.url else { return }
+        history.removeAll()
+        updateBackButton()
+        loadRoot(url)
     }
 
     // MARK: - Open / QuickLook
 
-    @objc private func openSelection() {
-        guard let url = selectedURL else { return }
-        // Folders open as a real Finder window; files open in their app. (The
-        // column view already drills into folders on single-click.)
-        NSWorkspace.shared.open(url)
+    @objc private func handleDoubleClick() {
+        guard content.clickedRow >= 0,
+              let node = content.item(atRow: content.clickedRow) as? Node else { return }
+        open(node)
+    }
+
+    private func activateSelection() {
+        guard let node = selectedNode else { return }
+        open(node)
+    }
+
+    private func open(_ node: Node) {
+        // Category header → expand/collapse inline.
+        if node.category != nil {
+            content.isItemExpanded(node) ? content.collapseItem(node) : content.expandItem(node)
+            return
+        }
+        guard let url = node.url else { return }
+        if isLeaf(url) {
+            NSWorkspace.shared.open(url)          // file → launch in its app
+        } else {
+            navigate(into: url)                   // folder → drill into the next level
+        }
+    }
+
+    private func navigate(into url: URL) {
+        history.append(rootURL)
+        loadRoot(url)
+        updateBackButton()
+    }
+
+    @objc private func goBack() {
+        guard let previous = history.popLast() else { return }
+        loadRoot(previous)
+        updateBackButton()
+    }
+
+    private func updateBackButton() {
+        backButton.isEnabled = !history.isEmpty
     }
 
     private func toggleQuickLook() {
@@ -224,9 +338,16 @@ final class FileBrowserView: NSView {
         }
     }
 
+    private var selectedNode: Node? {
+        let row = content.selectedRow
+        guard row >= 0 else { return nil }
+        return content.item(atRow: row) as? Node
+    }
+
+    var selectedURL: URL? { selectedNode?.url }
+
     // MARK: - Directory listing
 
-    /// One directory entry with everything the sort/group needs, stat'd once.
     private struct Entry {
         let url: URL
         let isFolder: Bool
@@ -234,32 +355,48 @@ final class FileBrowserView: NSView {
         let name: String
         let date: Date
         let size: Int
+        let kindString: String
     }
 
-    private func rows(of url: URL) -> [BrowserRow] {
-        if let cached = rowCache[url.path] { return cached }
+    private func makeNodes(forDirectory url: URL) -> [Node] {
         let entries = entries(of: url)
-        let result: [BrowserRow]
         if Defaults.groupByKind {
             var buckets: [FileCategory: [Entry]] = [:]
             for entry in entries { buckets[entry.category, default: []].append(entry) }
-            var out: [BrowserRow] = []
-            for category in FileCategory.allCases {
-                guard var items = buckets[category], !items.isEmpty else { continue }
+            return FileCategory.allCases.compactMap { category in
+                guard var items = buckets[category], !items.isEmpty else { return nil }
                 items.sort(by: ordering(foldersFirst: false))
-                out.append(BrowserRow(.header(category)))
-                out.append(contentsOf: items.map { BrowserRow(.file($0.url)) })
+                let node = Node(.category(category))
+                node.loadedChildren = items.map(node(from:))
+                return node
             }
-            result = out
         } else {
-            result = entries.sorted(by: ordering(foldersFirst: true)).map { BrowserRow(.file($0.url)) }
+            return entries.sorted(by: ordering(foldersFirst: true)).map(node(from:))
         }
-        rowCache[url.path] = result
+    }
+
+    private func node(from entry: Entry) -> Node {
+        let node = Node(.file(entry.url))
+        node.isFolder = entry.isFolder
+        node.size = entry.size
+        node.date = entry.date
+        node.kindString = entry.kindString
+        return node
+    }
+
+    private func children(of node: Node) -> [Node] {
+        if let cached = node.loadedChildren { return cached }
+        let result: [Node]
+        switch node.kind {
+        case .category:      result = []   // pre-loaded in makeNodes
+        case .file(let url): result = isLeaf(url) ? [] : makeNodes(forDirectory: url)
+        }
+        node.loadedChildren = result
         return result
     }
 
     private static let resourceKeys: [URLResourceKey] = [
-        .isDirectoryKey, .isPackageKey, .localizedNameKey,
+        .isDirectoryKey, .isPackageKey, .localizedNameKey, .localizedTypeDescriptionKey,
         .contentModificationDateKey, .fileSizeKey, .contentTypeKey,
     ]
 
@@ -278,7 +415,8 @@ final class FileBrowserView: NSView {
                 category: category(isFolder: isFolder, type: values?.contentType),
                 name: values?.localizedName ?? item.lastPathComponent,
                 date: values?.contentModificationDate ?? .distantPast,
-                size: values?.fileSize ?? 0
+                size: values?.fileSize ?? 0,
+                kindString: values?.localizedTypeDescription ?? (isFolder ? "Folder" : "")
             )
         }
     }
@@ -298,8 +436,8 @@ final class FileBrowserView: NSView {
     }
 
     /// Comparator for the current sort key/direction. `foldersFirst` keeps
-    /// directories on top regardless of key (used for the flat, ungrouped list).
-    /// The secondary key is always an ascending natural-name compare.
+    /// directories on top regardless of key (the flat, ungrouped list).
+    /// Secondary key is always an ascending natural-name compare.
     private func ordering(foldersFirst: Bool) -> (Entry, Entry) -> Bool {
         let key = Defaults.sortKey
         let ascending = Defaults.sortAscending
@@ -310,7 +448,7 @@ final class FileBrowserView: NSView {
             switch key {
             case .name:
                 let cmp = a.name.localizedStandardCompare(b.name)
-                if cmp == .orderedSame { return false }   // equal → stable, neither precedes
+                if cmp == .orderedSame { return false }
                 result = (cmp == .orderedAscending)
             case .dateModified:
                 if a.date == b.date { return byName() }
@@ -333,8 +471,6 @@ final class FileBrowserView: NSView {
         (try? url.resourceValues(forKeys: [.localizedNameKey]))?.localizedName ?? url.lastPathComponent
     }
 
-    /// Folders are branches; files and packages (.app, .rtfd, …) are leaves so
-    /// a double-click opens them instead of trying to descend.
     private func isLeaf(_ url: URL) -> Bool {
         let vals = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
         let isDir = vals?.isDirectory ?? false
@@ -342,76 +478,225 @@ final class FileBrowserView: NSView {
         return !isDir || isPackage
     }
 
-    /// Directory whose contents `item` represents: the root, or a folder row.
-    private func directory(for item: Any?) -> URL? {
-        guard let row = item as? BrowserRow else { return rootURL }
-        return row.url
+    // MARK: - Sidebar contents
+
+    private func makeSidebarItems() -> [SidebarItem] {
+        let fm = FileManager.default
+        func loc(_ url: URL?, _ fallback: String) -> SidebarItem? {
+            guard let url else { return nil }
+            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            icon.size = NSSize(width: 16, height: 16)
+            return SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
+        }
+        let home = fm.homeDirectoryForCurrentUser
+        let favorites = [
+            loc(try? fm.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Desktop"),
+            loc(try? fm.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Downloads"),
+            loc(try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Documents"),
+            loc(home, "Home"),
+            loc(URL(fileURLWithPath: "/Applications"), "Applications"),
+        ].compactMap { $0 }
+        let locations = [
+            loc(URL(fileURLWithPath: "/"), "Computer"),
+        ].compactMap { $0 }
+        return [
+            SidebarItem(title: "Favorites", url: nil, icon: nil, isSection: true, children: favorites),
+            SidebarItem(title: "Locations", url: nil, icon: nil, isSection: true, children: locations),
+        ]
     }
 }
 
-// MARK: - NSBrowserDelegate (item-based)
+// MARK: - Content outline data source / delegate
 
-extension FileBrowserView: NSBrowserDelegate {
-    func rootItem(for browser: NSBrowser) -> Any? { rootRow }
-
-    func browser(_ browser: NSBrowser, numberOfChildrenOfItem item: Any?) -> Int {
-        guard let dir = directory(for: item) else { return 0 }
-        return rows(of: dir).count
+extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
+    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+        if outlineView === sidebar {
+            guard let item = item as? SidebarItem else { return sidebarItems.count }
+            return item.children.count
+        }
+        guard let node = item as? Node else { return rootNodes.count }
+        return children(of: node).count
     }
 
-    func browser(_ browser: NSBrowser, child index: Int, ofItem item: Any?) -> Any {
-        rows(of: directory(for: item) ?? rootURL)[index]
+    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+        if outlineView === sidebar {
+            guard let item = item as? SidebarItem else { return sidebarItems[index] }
+            return item.children[index]
+        }
+        guard let node = item as? Node else { return rootNodes[index] }
+        return children(of: node)[index]
     }
 
-    func browser(_ browser: NSBrowser, isLeafItem item: Any?) -> Bool {
-        guard let row = item as? BrowserRow else { return false }
-        switch row.kind {
-        case .header:        return true
-        case .file(let url): return isLeaf(url)
+    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+        if outlineView === sidebar { return (item as? SidebarItem)?.isSection ?? false }
+        guard let node = item as? Node else { return false }
+        switch node.kind {
+        case .category:      return true
+        case .file(let url): return !isLeaf(url)
         }
     }
 
-    func browser(_ browser: NSBrowser, objectValueForItem item: Any?) -> Any? {
-        guard let row = item as? BrowserRow else { return "" }
-        switch row.kind {
-        case .header(let category):
-            return NSAttributedString(string: category.title.uppercased(), attributes: [
-                .font: NSFont.systemFont(ofSize: 10, weight: .semibold),
-                .foregroundColor: NSColor.secondaryLabelColor,
+    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
+        if outlineView === sidebar { return (item as? SidebarItem)?.isSection ?? false }
+        return (item as? Node)?.category != nil
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        if outlineView === sidebar { return (item as? SidebarItem)?.url != nil }
+        return (item as? Node)?.category == nil
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+        guard outlineView === content, let descriptor = content.sortDescriptors.first,
+              let key = descriptor.key else { return }
+        Defaults.sortKey = FileSort(columnKey: key)
+        Defaults.sortAscending = descriptor.ascending
+        reloadListing()
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+        if outlineView === sidebar { return sidebarView(item as! SidebarItem) }
+
+        let node = item as! Node
+        if let category = node.category {
+            // Group section header — only in the name column.
+            guard tableColumn?.identifier.rawValue == "name" else { return nil }
+            return groupCell(title: category.title.uppercased())
+        }
+        switch tableColumn?.identifier.rawValue {
+        case "name": return nameCell(url: node.url!)
+        case "size": return textCell(node.isFolder ? "--" : Self.byteFormatter.string(fromByteCount: Int64(node.size)),
+                                      align: .right, secondary: true)
+        case "kind": return textCell(node.kindString, secondary: true)
+        case "date": return textCell(node.date == .distantPast ? "" : Self.dateFormatter.string(from: node.date),
+                                      secondary: true)
+        default:     return nil
+        }
+    }
+
+    // MARK: Cells
+
+    private func nameCell(url: URL) -> NSView {
+        let id = NSUserInterfaceItemIdentifier("name")
+        let cell = (content.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
+            let cell = NSTableCellView()
+            cell.identifier = id
+            let icon = NSImageView()
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            let label = NSTextField(labelWithString: "")
+            label.translatesAutoresizingMaskIntoConstraints = false
+            label.lineBreakMode = .byTruncatingTail
+            cell.addSubview(icon); cell.addSubview(label)
+            cell.imageView = icon; cell.textField = label
+            NSLayoutConstraint.activate([
+                icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+                icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: 16),
+                icon.heightAnchor.constraint(equalToConstant: 16),
+                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
+                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
             ])
-        case .file(let url):
-            // The column cell is a text-only NSTextFieldCell that ignores cell
-            // images, but it does render an attributed string — so we embed the
-            // file icon as an inline text attachment ahead of the name.
-            let icon = NSWorkspace.shared.icon(forFile: url.path)
-            icon.size = NSSize(width: 16, height: 16)
-            let attachment = NSTextAttachment()
-            attachment.image = icon
-            attachment.bounds = CGRect(x: 0, y: -3, width: 16, height: 16)
-            let result = NSMutableAttributedString(attachment: attachment)
-            result.append(NSAttributedString(string: "  " + displayName(url)))
-            return result
-        }
+            return cell
+        }()
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 16, height: 16)
+        cell.imageView?.image = icon
+        cell.textField?.stringValue = displayName(url)
+        return cell
     }
 
-    /// Disable header rows so they read as section labels and can't be selected
-    /// or drilled into.
-    func browser(_ browser: NSBrowser, willDisplayCell cell: Any, atRow row: Int, column: Int) {
-        guard let cell = cell as? NSBrowserCell,
-              let item = browser.item(atRow: row, inColumn: column) as? BrowserRow else { return }
-        if item.isHeader {
-            cell.isEnabled = false
-            cell.isLeaf = true
-        } else {
-            cell.isEnabled = true
+    private func textCell(_ text: String, align: NSTextAlignment = .left, secondary: Bool = false) -> NSView {
+        let id = NSUserInterfaceItemIdentifier("text")
+        let cell = (content.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
+            let cell = NSTableCellView()
+            cell.identifier = id
+            let label = NSTextField(labelWithString: "")
+            label.translatesAutoresizingMaskIntoConstraints = false
+            label.lineBreakMode = .byTruncatingTail
+            cell.addSubview(label); cell.textField = label
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            ])
+            return cell
+        }()
+        cell.textField?.stringValue = text
+        cell.textField?.alignment = align
+        cell.textField?.textColor = secondary ? .secondaryLabelColor : .labelColor
+        return cell
+    }
+
+    private func groupCell(title: String) -> NSView {
+        let id = NSUserInterfaceItemIdentifier("group")
+        let cell = (content.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
+            let cell = NSTableCellView()
+            cell.identifier = id
+            let label = NSTextField(labelWithString: "")
+            label.translatesAutoresizingMaskIntoConstraints = false
+            label.font = .systemFont(ofSize: 11, weight: .semibold)
+            label.textColor = .secondaryLabelColor
+            cell.addSubview(label); cell.textField = label
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            ])
+            return cell
+        }()
+        cell.textField?.stringValue = title
+        return cell
+    }
+
+    private func sidebarView(_ item: SidebarItem) -> NSView {
+        if item.isSection {
+            let id = NSUserInterfaceItemIdentifier("sbSection")
+            let cell = (sidebar.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
+                let cell = NSTableCellView()
+                cell.identifier = id
+                let label = NSTextField(labelWithString: "")
+                label.translatesAutoresizingMaskIntoConstraints = false
+                cell.addSubview(label); cell.textField = label
+                NSLayoutConstraint.activate([
+                    label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+                    label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                ])
+                return cell
+            }()
+            cell.textField?.stringValue = item.title
+            return cell
         }
+        let id = NSUserInterfaceItemIdentifier("sbItem")
+        let cell = (sidebar.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
+            let cell = NSTableCellView()
+            cell.identifier = id
+            let icon = NSImageView()
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            let label = NSTextField(labelWithString: "")
+            label.translatesAutoresizingMaskIntoConstraints = false
+            label.lineBreakMode = .byTruncatingTail
+            cell.addSubview(icon); cell.addSubview(label)
+            cell.imageView = icon; cell.textField = label
+            NSLayoutConstraint.activate([
+                icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+                icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: 16),
+                icon.heightAnchor.constraint(equalToConstant: 16),
+                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
+                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            ])
+            return cell
+        }()
+        cell.imageView?.image = item.icon
+        cell.textField?.stringValue = item.title
+        return cell
     }
 }
 
 // MARK: - QuickLook
-//
-// QuickLook's informal protocol is nonisolated; these callbacks all arrive on
-// the main thread, so we hop back onto the main actor to read our state.
+
 extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     override nonisolated func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool { true }
 
@@ -438,9 +723,8 @@ extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     }
 }
 
-/// NSBrowser subclass that routes the keys Finder users expect — space for
-/// QuickLook, Return to open — back to the owning view.
-final class FileBrowser: NSBrowser {
+/// NSOutlineView subclass that routes space → QuickLook and Return → open.
+final class FileOutlineView: NSOutlineView {
     var onSpaceKey: (() -> Void)?
     var onEnterKey: (() -> Void)?
 

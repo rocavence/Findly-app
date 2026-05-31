@@ -6,7 +6,7 @@ import AppKit
 /// no Finder process, no Apple Events, no CGS, no per-Space bookkeeping.
 @MainActor
 final class DrawerController {
-    private let defaultThickness: CGFloat = 480
+    private let defaultThickness: CGFloat = 760   // room for the sidebar + 4 list columns
     private let animationDuration: TimeInterval = 0.22
     private let animationTickNanos: UInt64 = 8_000_000   // ~120 Hz target
     private let offscreenBuffer: CGFloat = 50            // clear any shadow
@@ -75,7 +75,7 @@ final class DrawerController {
         window.setFrame(start, display: false)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        window.makeFirstResponder(browserView.browser)
+        window.makeFirstResponder(browserView.initialFirstResponder)
 
         animate(from: start, to: target)
         lastEdge = edge
