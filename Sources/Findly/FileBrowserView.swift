@@ -83,6 +83,8 @@ final class FileBrowserView: NSView {
     private var backButton: NSButton!
     /// Folders we navigated out of, newest last; powers the Back button.
     private var history: [URL] = []
+    /// Items the context menu acts on, captured when the menu opens.
+    private var contextURLs: [URL] = []
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter(); f.countStyle = .file; return f
@@ -190,6 +192,9 @@ final class FileBrowserView: NSView {
         content.onEnterKey = { [weak self] in self?.activateSelection() }
         content.sortDescriptors = [NSSortDescriptor(key: Defaults.sortKey.columnKey,
                                                      ascending: Defaults.sortAscending)]
+        let menu = NSMenu()
+        menu.delegate = self
+        content.menu = menu
     }
 
     private func configureSidebar() {
@@ -281,10 +286,8 @@ final class FileBrowserView: NSView {
     @objc private func sidebarClicked() {
         guard sidebar.clickedRow >= 0,
               let item = sidebar.item(atRow: sidebar.clickedRow) as? SidebarItem,
-              let url = item.url else { return }
-        history.removeAll()
-        updateBackButton()
-        loadRoot(url)
+              let url = item.url, url != rootURL else { return }
+        navigate(into: url)   // push history so Back works after a sidebar jump
     }
 
     // MARK: - Open / QuickLook
@@ -328,6 +331,58 @@ final class FileBrowserView: NSView {
 
     private func updateBackButton() {
         backButton.isEnabled = !history.isEmpty
+    }
+
+    // MARK: - Context menu
+
+    /// Files the right-click acts on: the clicked row, expanded to the whole
+    /// selection when the clicked row is part of it (Finder's behavior).
+    private func contextTargets() -> [URL] {
+        let clicked = content.clickedRow
+        guard clicked >= 0, let url = (content.item(atRow: clicked) as? Node)?.url else { return [] }
+        if content.selectedRowIndexes.contains(clicked) {
+            let selected = selectedURLs
+            return selected.isEmpty ? [url] : selected
+        }
+        return [url]
+    }
+
+    @objc private func ctxOpen() {
+        if contextURLs.count == 1, let url = contextURLs.first, !isLeaf(url) {
+            navigate(into: url)
+        } else {
+            contextURLs.forEach { NSWorkspace.shared.open($0) }
+        }
+    }
+
+    @objc private func ctxReveal() {
+        NSWorkspace.shared.activateFileViewerSelecting(contextURLs)
+    }
+
+    @objc private func ctxQuickLook() { toggleQuickLook() }
+
+    @objc private func ctxTrash() {
+        for url in contextURLs {
+            try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        }
+        reloadListing()
+    }
+
+    @objc private func ctxRename() {
+        guard let url = contextURLs.first else { return }
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = url.lastPathComponent
+        let alert = NSAlert()
+        alert.messageText = "Rename “\(url.lastPathComponent)”"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let newName = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty, newName != url.lastPathComponent else { return }
+        let dest = url.deletingLastPathComponent().appendingPathComponent(newName)
+        try? FileManager.default.moveItem(at: url, to: dest)
+        reloadListing()
     }
 
     private func toggleQuickLook() {
@@ -518,7 +573,7 @@ final class FileBrowserView: NSView {
     private func makeSidebarItems() -> [SidebarItem] {
         let fm = FileManager.default
         func loc(_ url: URL?, _ fallback: String) -> SidebarItem? {
-            guard let url else { return nil }
+            guard let url, fm.fileExists(atPath: url.path) else { return nil }
             let icon = NSWorkspace.shared.icon(forFile: url.path)
             icon.size = NSSize(width: 16, height: 16)
             return SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
@@ -528,6 +583,7 @@ final class FileBrowserView: NSView {
             loc(try? fm.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Desktop"),
             loc(try? fm.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Downloads"),
             loc(try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Documents"),
+            loc(home.appendingPathComponent("Dropbox"), "Dropbox"),
             loc(home, "Home"),
             loc(URL(fileURLWithPath: "/Applications"), "Applications"),
         ].compactMap { $0 }
@@ -760,6 +816,27 @@ extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
             let urls = selectedURLs
             return index < urls.count ? (urls[index] as NSURL) : nil
         }
+    }
+}
+
+// MARK: - Context menu population
+
+extension FileBrowserView: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        contextURLs = contextTargets()
+        guard !contextURLs.isEmpty else { return }
+        let many = contextURLs.count > 1
+        func add(_ title: String, _ action: Selector) {
+            let item = menu.addItem(withTitle: title, action: action, keyEquivalent: "")
+            item.target = self
+        }
+        add(many ? "Open \(contextURLs.count) Items" : "Open", #selector(ctxOpen))
+        add(many ? "Quick Look \(contextURLs.count) Items" : "Quick Look", #selector(ctxQuickLook))
+        add("Reveal in Finder", #selector(ctxReveal))
+        menu.addItem(.separator())
+        if !many { add("Rename…", #selector(ctxRename)) }
+        add("Move to Trash", #selector(ctxTrash))
     }
 }
 
