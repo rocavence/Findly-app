@@ -28,6 +28,13 @@ if [[ -f "Resources/AppIcon.icns" ]]; then
   cp "Resources/AppIcon.icns" "${RES_DIR}/AppIcon.icns"
 fi
 
+# Localizations: copy every Resources/*.lproj into the bundle's Resources so the
+# .strings load from Bundle.main at runtime (NSLocalizedString). Required — SwiftPM
+# doesn't bundle these for us, and without them only English keys would resolve.
+for lproj in Resources/*.lproj; do
+  [[ -d "$lproj" ]] && cp -R "$lproj" "${RES_DIR}/"
+done
+
 # PkgInfo is optional but conventional.
 printf 'APPL????' > "${CONTENTS}/PkgInfo"
 

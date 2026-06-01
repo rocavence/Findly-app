@@ -1,0 +1,51 @@
+/* 繁體中文 (Traditional Chinese) localization. Keys are the English source text;
+   values are natural 繁體中文 matching macOS Finder terminology. Keep in sync
+   with en.lproj/Localizable.strings — every key must appear in both. */
+
+/* --- Status menu (AppDelegate) --- */
+"Findly %@" = "Findly %@";
+"Grant Full Disk Access…" = "授予完整磁碟取用權限…";
+"Toggle Drawer" = "開關抽屜";
+"Snap Top" = "靠上";
+"Snap Bottom" = "靠下";
+"Snap Left" = "靠左";
+"Snap Right" = "靠右";
+"Quit Findly" = "結束 Findly";
+
+/* --- File list columns --- */
+"Name" = "名稱";
+"Size" = "大小";
+"Kind" = "種類";
+"Date Modified" = "修改日期";
+
+/* --- Toolbar --- */
+"Back" = "上一頁";
+"Group by Kind" = "依種類分類";
+
+/* --- Group-by-Kind section headers --- */
+"Folders" = "檔案夾";
+"Applications" = "應用程式";
+"Documents" = "文件";
+"Images" = "影像";
+"Audio" = "音訊";
+"Movies" = "影片";
+"Archives" = "封存檔";
+"Other" = "其他";
+
+/* --- Sidebar section headers --- */
+"Favorites" = "喜好項目";
+"Locations" = "位置";
+
+/* --- Context menu --- */
+"Open" = "打開";
+"Open %d Items" = "打開 %d 個項目";
+"Quick Look" = "快速查看";
+"Quick Look %d Items" = "快速查看 %d 個項目";
+"Reveal in Finder" = "在 Finder 中顯示";
+"Rename…" = "重新命名…";
+"Move to Trash" = "丟到垃圾桶";
+
+/* --- Rename dialog --- */
+"Rename “%@”" = "重新命名“%@”";
+"Rename" = "重新命名";
+"Cancel" = "取消";

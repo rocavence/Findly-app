@@ -62,7 +62,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Disabled label showing the running build, read at runtime so it always
         // matches Info.plist rather than a hardcoded string.
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-        let versionItem = NSMenuItem(title: "Findly \(version)", action: nil, keyEquivalent: "")
+        // "Findly %@" rather than "Findly \(version)" so the localized format can
+        // reposition the version number for languages that need it.
+        let versionTitle = String(format: NSLocalizedString("Findly %@", comment: "Status menu version label, %@ is the version number"), version)
+        let versionItem = NSMenuItem(title: versionTitle, action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
         menu.addItem(.separator())
@@ -70,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Surfaced only while Full Disk Access is missing, so the user can grant
         // it on their own terms instead of System Settings hijacking focus on
         // every launch.
-        let fda = NSMenuItem(title: "Grant Full Disk Access…", action: #selector(openFDASettings), keyEquivalent: "")
+        let fda = NSMenuItem(title: NSLocalizedString("Grant Full Disk Access…", comment: "Status menu item to open System Settings FDA pane"), action: #selector(openFDASettings), keyEquivalent: "")
         fda.target = self
         menu.addItem(fda)
         let fdaSeparator = NSMenuItem.separator()
@@ -78,14 +81,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fda.representedObject = fdaSeparator
         fdaItem = fda
 
-        let toggle = NSMenuItem(title: "Toggle Drawer", action: #selector(toggleDrawer), keyEquivalent: "`")
+        let toggle = NSMenuItem(title: NSLocalizedString("Toggle Drawer", comment: "Status menu item that shows/hides the drawer"), action: #selector(toggleDrawer), keyEquivalent: "`")
         toggle.keyEquivalentModifierMask = [.command]
         toggle.target = self
         menu.addItem(toggle)
         menu.addItem(.separator())
         for edge in ScreenEdge.allCases {
             let item = NSMenuItem(
-                title: "Snap \(edge.rawValue.capitalized)",
+                title: edge.snapMenuTitle,
                 action: #selector(snap(_:)),
                 keyEquivalent: edge.menuKeyEquivalent
             )
@@ -95,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit Findly", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: NSLocalizedString("Quit Findly", comment: "Status menu item to quit the app"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
         statusItem.menu = menu
@@ -124,6 +127,19 @@ extension AppDelegate: NSMenuDelegate {
 }
 
 private extension ScreenEdge {
+    /// Localized "Snap …" menu title. A distinct key per edge (rather than
+    /// formatting one "Snap %@" template with a translated direction word) so
+    /// each language can phrase the whole entry naturally — e.g. 繁體中文 reads
+    /// "靠上/靠下/靠左/靠右" with no separate "Snap" verb.
+    var snapMenuTitle: String {
+        switch self {
+        case .top:    return NSLocalizedString("Snap Top", comment: "Status menu item: snap drawer to top edge")
+        case .bottom: return NSLocalizedString("Snap Bottom", comment: "Status menu item: snap drawer to bottom edge")
+        case .left:   return NSLocalizedString("Snap Left", comment: "Status menu item: snap drawer to left edge")
+        case .right:  return NSLocalizedString("Snap Right", comment: "Status menu item: snap drawer to right edge")
+        }
+    }
+
     /// Single-character keyEquivalent for arrow keys, displayed in the menu
     /// next to the title.
     var menuKeyEquivalent: String {

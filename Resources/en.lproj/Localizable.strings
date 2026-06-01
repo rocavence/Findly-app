@@ -1,0 +1,51 @@
+/* English (base) localization. Keys are the English source text itself, the
+   pattern Apple recommends; this file is the identity mapping. Keep in sync
+   with zh-Hant.lproj/Localizable.strings — every key must appear in both. */
+
+/* --- Status menu (AppDelegate) --- */
+"Findly %@" = "Findly %@";
+"Grant Full Disk Access…" = "Grant Full Disk Access…";
+"Toggle Drawer" = "Toggle Drawer";
+"Snap Top" = "Snap Top";
+"Snap Bottom" = "Snap Bottom";
+"Snap Left" = "Snap Left";
+"Snap Right" = "Snap Right";
+"Quit Findly" = "Quit Findly";
+
+/* --- File list columns --- */
+"Name" = "Name";
+"Size" = "Size";
+"Kind" = "Kind";
+"Date Modified" = "Date Modified";
+
+/* --- Toolbar --- */
+"Back" = "Back";
+"Group by Kind" = "Group by Kind";
+
+/* --- Group-by-Kind section headers --- */
+"Folders" = "Folders";
+"Applications" = "Applications";
+"Documents" = "Documents";
+"Images" = "Images";
+"Audio" = "Audio";
+"Movies" = "Movies";
+"Archives" = "Archives";
+"Other" = "Other";
+
+/* --- Sidebar section headers --- */
+"Favorites" = "Favorites";
+"Locations" = "Locations";
+
+/* --- Context menu --- */
+"Open" = "Open";
+"Open %d Items" = "Open %d Items";
+"Quick Look" = "Quick Look";
+"Quick Look %d Items" = "Quick Look %d Items";
+"Reveal in Finder" = "Reveal in Finder";
+"Rename…" = "Rename…";
+"Move to Trash" = "Move to Trash";
+
+/* --- Rename dialog --- */
+"Rename “%@”" = "Rename “%@”";
+"Rename" = "Rename";
+"Cancel" = "Cancel";

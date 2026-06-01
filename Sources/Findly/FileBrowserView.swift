@@ -8,10 +8,10 @@ enum FileSort: String, CaseIterable {
     case name, dateModified, size, kind
     var title: String {
         switch self {
-        case .name:         return "Name"
-        case .dateModified: return "Date Modified"
-        case .size:         return "Size"
-        case .kind:         return "Kind"
+        case .name:         return NSLocalizedString("Name", comment: "File list column header")
+        case .dateModified: return NSLocalizedString("Date Modified", comment: "File list column header")
+        case .size:         return NSLocalizedString("Size", comment: "File list column header")
+        case .kind:         return NSLocalizedString("Kind", comment: "File list column header")
         }
     }
     var columnKey: String {
@@ -30,14 +30,14 @@ enum FileCategory: Int, CaseIterable {
     case folder, application, document, image, audio, movie, archive, other
     var title: String {
         switch self {
-        case .folder:      return "Folders"
-        case .application: return "Applications"
-        case .document:    return "Documents"
-        case .image:       return "Images"
-        case .audio:       return "Audio"
-        case .movie:       return "Movies"
-        case .archive:     return "Archives"
-        case .other:       return "Other"
+        case .folder:      return NSLocalizedString("Folders", comment: "Group-by-Kind section header")
+        case .application: return NSLocalizedString("Applications", comment: "Group-by-Kind section header")
+        case .document:    return NSLocalizedString("Documents", comment: "Group-by-Kind section header")
+        case .image:       return NSLocalizedString("Images", comment: "Group-by-Kind section header")
+        case .audio:       return NSLocalizedString("Audio", comment: "Group-by-Kind section header")
+        case .movie:       return NSLocalizedString("Movies", comment: "Group-by-Kind section header")
+        case .archive:     return NSLocalizedString("Archives", comment: "Group-by-Kind section header")
+        case .other:       return NSLocalizedString("Other", comment: "Group-by-Kind section header")
         }
     }
 }
@@ -165,10 +165,10 @@ final class FileBrowserView: NSView {
 
     private func configureContent() {
         let columns: [(key: String, title: String, width: CGFloat, min: CGFloat)] = [
-            ("name", "Name", 240, 120),
-            ("size", "Size", 76, 60),
-            ("kind", "Kind", 120, 80),
-            ("date", "Date Modified", 160, 120),
+            ("name", NSLocalizedString("Name", comment: "File list column header"), 240, 120),
+            ("size", NSLocalizedString("Size", comment: "File list column header"), 76, 60),
+            ("kind", NSLocalizedString("Kind", comment: "File list column header"), 120, 80),
+            ("date", NSLocalizedString("Date Modified", comment: "File list column header"), 160, 120),
         ]
         for spec in columns {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(spec.key))
@@ -229,7 +229,7 @@ final class FileBrowserView: NSView {
         back.imageScaling = .scaleProportionallyDown
         back.isEnabled = false
         back.translatesAutoresizingMaskIntoConstraints = false
-        back.toolTip = "Back"
+        back.toolTip = NSLocalizedString("Back", comment: "Toolbar back button tooltip")
         bar.addSubview(back)
         backButton = back
 
@@ -239,7 +239,7 @@ final class FileBrowserView: NSView {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         bar.addSubview(titleLabel)
 
-        let group = NSButton(checkboxWithTitle: "Group by Kind", target: self, action: #selector(toggleGroup))
+        let group = NSButton(checkboxWithTitle: NSLocalizedString("Group by Kind", comment: "Toolbar checkbox to group files by kind"), target: self, action: #selector(toggleGroup))
         group.state = Defaults.groupByKind ? .on : .off
         group.controlSize = .small
         group.font = .systemFont(ofSize: 11)
@@ -384,10 +384,10 @@ final class FileBrowserView: NSView {
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         field.stringValue = url.lastPathComponent
         let alert = NSAlert()
-        alert.messageText = "Rename “\(url.lastPathComponent)”"
+        alert.messageText = String(format: NSLocalizedString("Rename “%@”", comment: "Rename dialog title, %@ is the current file name"), url.lastPathComponent)
         alert.accessoryView = field
-        alert.addButton(withTitle: "Rename")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: NSLocalizedString("Rename", comment: "Rename dialog confirm button"))
+        alert.addButton(withTitle: NSLocalizedString("Cancel", comment: "Rename dialog cancel button"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let newName = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty, newName != url.lastPathComponent else { return }
@@ -614,8 +614,8 @@ final class FileBrowserView: NSView {
             loc(URL(fileURLWithPath: "/"), "Computer"),
         ].compactMap { $0 }
         return [
-            SidebarItem(title: "Favorites", url: nil, icon: nil, isSection: true, children: favorites),
-            SidebarItem(title: "Locations", url: nil, icon: nil, isSection: true, children: locations),
+            SidebarItem(title: NSLocalizedString("Favorites", comment: "Sidebar section header"), url: nil, icon: nil, isSection: true, children: favorites),
+            SidebarItem(title: NSLocalizedString("Locations", comment: "Sidebar section header"), url: nil, icon: nil, isSection: true, children: locations),
         ]
     }
 }
@@ -877,12 +877,18 @@ extension FileBrowserView: NSMenuDelegate {
             let item = menu.addItem(withTitle: title, action: action, keyEquivalent: "")
             item.target = self
         }
-        add(many ? "Open \(contextURLs.count) Items" : "Open", #selector(ctxOpen))
-        add(many ? "Quick Look \(contextURLs.count) Items" : "Quick Look", #selector(ctxQuickLook))
-        add("Reveal in Finder", #selector(ctxReveal))
+        add(many
+            ? String(format: NSLocalizedString("Open %d Items", comment: "Context menu: open multiple selected items, %d is the count"), contextURLs.count)
+            : NSLocalizedString("Open", comment: "Context menu: open a single item"),
+            #selector(ctxOpen))
+        add(many
+            ? String(format: NSLocalizedString("Quick Look %d Items", comment: "Context menu: Quick Look multiple selected items, %d is the count"), contextURLs.count)
+            : NSLocalizedString("Quick Look", comment: "Context menu: Quick Look a single item"),
+            #selector(ctxQuickLook))
+        add(NSLocalizedString("Reveal in Finder", comment: "Context menu: reveal item in Finder"), #selector(ctxReveal))
         menu.addItem(.separator())
-        if !many { add("Rename…", #selector(ctxRename)) }
-        add("Move to Trash", #selector(ctxTrash))
+        if !many { add(NSLocalizedString("Rename…", comment: "Context menu: rename item"), #selector(ctxRename)) }
+        add(NSLocalizedString("Move to Trash", comment: "Context menu: move item to Trash"), #selector(ctxTrash))
     }
 }
 
