@@ -5,6 +5,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var controller: DrawerController!
     private var debugWindow: NSWindow?
+    /// "Grant Full Disk Access…" — shown in the menu only while access is missing.
+    private var fdaItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Debug/testing: show the browser in an ordinary window, bypassing the
@@ -17,7 +19,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller = DrawerController()
         setupStatusBar()
-        FullDiskAccess.promptIfNeeded()
         if ProcessInfo.processInfo.environment["FINDLY_DEBUG_AUTOSHOW"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 self?.controller.toggleDefault()
@@ -56,6 +57,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Findly")
 
         let menu = NSMenu()
+        menu.delegate = self
+
+        // Surfaced only while Full Disk Access is missing, so the user can grant
+        // it on their own terms instead of System Settings hijacking focus on
+        // every launch.
+        let fda = NSMenuItem(title: "Grant Full Disk Access…", action: #selector(openFDASettings), keyEquivalent: "")
+        fda.target = self
+        menu.addItem(fda)
+        let fdaSeparator = NSMenuItem.separator()
+        menu.addItem(fdaSeparator)
+        fda.representedObject = fdaSeparator
+        fdaItem = fda
+
         let toggle = NSMenuItem(title: "Toggle Drawer", action: #selector(toggleDrawer), keyEquivalent: "`")
         toggle.keyEquivalentModifierMask = [.command]
         toggle.target = self
@@ -87,7 +101,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleDrawer() { controller.toggleDefault() }
 
+    @objc private func openFDASettings() { FullDiskAccess.openSettings() }
+
     @objc private func quit() { NSApp.terminate(nil) }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    /// Hide the Full Disk Access entry once access is granted.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let granted = FullDiskAccess.isGranted
+        fdaItem?.isHidden = granted
+        (fdaItem?.representedObject as? NSMenuItem)?.isHidden = granted
+    }
 }
 
 private extension ScreenEdge {
