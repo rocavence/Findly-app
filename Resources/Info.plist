@@ -2,35 +2,35 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key>
-    <string>com.findly.app</string>
-    <key>CFBundleName</key>
-    <string>Findly</string>
-    <key>CFBundleDisplayName</key>
-    <string>Findly</string>
-    <key>CFBundleExecutable</key>
-    <string>Findly</string>
-    <key>CFBundleVersion</key>
-    <string>3</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.2.1</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>NSDesktopFolderUsageDescription</key>
-    <string>Findly 需要存取桌面才能在抽屜中瀏覽這個資料夾。</string>
-    <key>NSDocumentsFolderUsageDescription</key>
-    <string>Findly 需要存取文件才能在抽屜中瀏覽這個資料夾。</string>
-    <key>NSDownloadsFolderUsageDescription</key>
-    <string>Findly 需要存取下載才能在抽屜中瀏覽這個資料夾。</string>
-    <key>NSRemovableVolumesUsageDescription</key>
-    <string>Findly 需要存取外接磁碟才能在抽屜中瀏覽其內容。</string>
+	<key>CFBundleDisplayName</key>
+	<string>Findly</string>
+	<key>CFBundleExecutable</key>
+	<string>Findly</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.findly.app</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Findly</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.2</string>
+	<key>CFBundleVersion</key>
+	<string>4</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Findly 需要存取桌面才能在抽屜中瀏覽這個資料夾。</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Findly 需要存取文件才能在抽屜中瀏覽這個資料夾。</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Findly 需要存取下載才能在抽屜中瀏覽這個資料夾。</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Findly 需要存取外接磁碟才能在抽屜中瀏覽其內容。</string>
 </dict>
 </plist>

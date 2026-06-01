@@ -59,7 +59,7 @@ final class DrawerController {
         hotkeyManager?.shutdown()
         hotkeyManager = nil
         animationTask?.cancel()
-        if let t = resignKeyToken { NotificationCenter.default.removeObserver(t) }
+        if let t = resignKeyToken { NSWorkspace.shared.notificationCenter.removeObserver(t) }
         if let t = endResizeToken { NotificationCenter.default.removeObserver(t) }
         window.orderOut(nil)
     }
@@ -99,16 +99,19 @@ final class DrawerController {
     // MARK: - Auto-park
 
     private func observeResignKey() {
-        // Park when the user switches to *another app*, not merely when the
-        // window loses key focus. Opening the drawer's own sort menu or a
-        // QuickLook panel resigns key but keeps the app active, so those no
-        // longer make the drawer slide away mid-interaction.
-        resignKeyToken = NotificationCenter.default.addObserver(
-            forName: NSApplication.didResignActiveNotification,
+        // Park only when *another app* is brought to the front. Listening for
+        // didResignActive instead parked the drawer the instant it appeared,
+        // because a background agent's NSApp.activate doesn't reliably hold on
+        // macOS 14+ (activate → immediate resign → park). Watching for another
+        // app's activation avoids that, and ignores our own sort menu/QuickLook.
+        resignKeyToken = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
+            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
             MainActor.assumeIsolated {
+                guard let pid, pid != ProcessInfo.processInfo.processIdentifier else { return }
                 self?.handleResignKey()
             }
         }
