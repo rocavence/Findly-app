@@ -24,6 +24,11 @@ final class DrawerController {
     private var endResizeToken: NSObjectProtocol?
     private var hotkeyManager: HotkeyManager?
 
+    /// Pending auto-park, debounced so a brief focus flicker (e.g. the Full Disk
+    /// Access dialog popping up and dismissing) can't drive a park/unpark loop.
+    private var parkDebounceTask: Task<Void, Never>?
+    private let parkDebounceNanos: UInt64 = 150_000_000   // 150 ms
+
     init() {
         lastEdge = Defaults.lastEdge
 
@@ -59,6 +64,7 @@ final class DrawerController {
         hotkeyManager?.shutdown()
         hotkeyManager = nil
         animationTask?.cancel()
+        parkDebounceTask?.cancel()
         if let t = resignKeyToken { NSWorkspace.shared.notificationCenter.removeObserver(t) }
         if let t = endResizeToken { NotificationCenter.default.removeObserver(t) }
         window.orderOut(nil)
@@ -67,6 +73,8 @@ final class DrawerController {
     // MARK: - Slide on / off
 
     private func slideOnscreen(edge: ScreenEdge) {
+        // A deliberate re-open cancels any park still pending from a focus flicker.
+        parkDebounceTask?.cancel()
         let screen = activeScreen()
         let t = thickness(for: edge)
         let target = edge.panelFrame(on: screen.visibleFrame, thickness: t)
@@ -111,20 +119,34 @@ final class DrawerController {
         ) { [weak self] note in
             let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
             MainActor.assumeIsolated {
-                guard let pid, pid != ProcessInfo.processInfo.processIdentifier else { return }
+                // Focus came back to us before a pending park fired — cancel it,
+                // so a flicker out-and-back doesn't slam the drawer shut.
+                guard let pid, pid != ProcessInfo.processInfo.processIdentifier else {
+                    self?.parkDebounceTask?.cancel()
+                    return
+                }
                 self?.handleResignKey()
             }
         }
     }
 
     private func handleResignKey() {
-        guard let edge = lastEdge, !isParked, !isAnimating else { return }
+        guard lastEdge != nil, !isParked, !isAnimating else { return }
         // Debug/testing: keep the drawer pinned open across focus changes.
         if ProcessInfo.processInfo.environment["FINDLY_DEBUG_NOPARK"] != nil { return }
         // Don't park when focus left only because a QuickLook panel we drove
         // took over — the drawer should still be sitting there behind it.
         if browserView.isQuickLookActive { return }
-        parkOffscreen(edge: edge)
+        // Debounce: schedule the park and replace any still-pending one, so a
+        // momentary activation flicker resolves into at most one park.
+        parkDebounceTask?.cancel()
+        parkDebounceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: self?.parkDebounceNanos ?? 150_000_000)
+            guard !Task.isCancelled, let self else { return }
+            // Re-check: focus or state may have changed during the wait.
+            guard let edge = self.lastEdge, !self.isParked, !self.isAnimating else { return }
+            self.parkOffscreen(edge: edge)
+        }
     }
 
     // MARK: - Drag-to-resize → thickness

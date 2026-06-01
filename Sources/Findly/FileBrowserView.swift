@@ -54,6 +54,10 @@ final class Node {
     var size = 0
     var date = Date.distantPast
     var kindString = ""
+    /// Lowercased extension used as the shared-icon cache key, or nil when the
+    /// row must use its own per-path icon (folders, bundles/packages, and files
+    /// with no extension). See `nameCell(url:)`.
+    var iconCacheKey: String?
     init(_ kind: Kind) { self.kind = kind }
 
     var url: URL? { if case .file(let u) = kind { return u }; return nil }
@@ -278,6 +282,13 @@ final class FileBrowserView: NSView {
 
     /// Rebuild the tree with fresh nodes so re-sorting/grouping applies at every
     /// level. Collapses expansion, a fair trade for consistent selection.
+    ///
+    /// The full `reloadData()` here is intentional: every caller changes the
+    /// whole visible directory (navigation, sort, group toggle, trash, rename).
+    /// For future *localized* updates — e.g. a file-system watcher reflecting a
+    /// single added/removed/renamed row — prefer
+    /// `content.reloadItem(_:reloadChildren:)` to relayout only that subtree
+    /// rather than rebuilding and collapsing the entire tree.
     private func reloadListing() {
         rootNodes = makeNodes(forDirectory: rootURL)
         content.reloadData()
@@ -412,6 +423,7 @@ final class FileBrowserView: NSView {
     private struct Entry {
         let url: URL
         let isFolder: Bool
+        let isPackage: Bool
         let category: FileCategory
         let name: String
         let date: Date
@@ -445,6 +457,13 @@ final class FileBrowserView: NSView {
         node.size = entry.size
         node.date = entry.date
         node.kindString = entry.kindString
+        // Only plain files with an extension share a cached generic-type icon.
+        // Folders and bundles/packages (.app, .rtfd, …) carry per-item icons, so
+        // they keep using the per-path icon and bypass the cache.
+        if !entry.isFolder, !entry.isPackage {
+            let ext = entry.url.pathExtension.lowercased()
+            node.iconCacheKey = ext.isEmpty ? nil : ext
+        }
         return node
     }
 
@@ -479,10 +498,12 @@ final class FileBrowserView: NSView {
             // Symlinks (e.g. ~/Dropbox) report as non-directories, so resolve to
             // the target to classify and navigate them like the real folder.
             let target = resolved(item, isSymlink: values?.isSymbolicLink ?? false)
-            let isFolder = (target.isDirectory ?? false) && !(target.isPackage ?? false)
+            let isPackage = target.isPackage ?? false
+            let isFolder = (target.isDirectory ?? false) && !isPackage
             return Entry(
                 url: item,
                 isFolder: isFolder,
+                isPackage: isPackage,
                 category: category(isFolder: isFolder, type: target.contentType),
                 name: values?.localizedName ?? item.lastPathComponent,
                 date: values?.contentModificationDate ?? .distantPast,
@@ -659,7 +680,7 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
             return groupCell(title: category.title.uppercased())
         }
         switch tableColumn?.identifier.rawValue {
-        case "name": return nameCell(url: node.url!)
+        case "name": return nameCell(for: node)
         case "size": return textCell((node.isFolder || node.size == 0) ? "--" : Self.byteFormatter.string(fromByteCount: Int64(node.size)),
                                       align: .right, secondary: true)
         case "kind": return textCell(node.kindString, secondary: true)
@@ -671,7 +692,14 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
 
     // MARK: Cells
 
-    private func nameCell(url: URL) -> NSView {
+    /// Shared 16×16 generic-type icons, keyed by lowercased file extension, so a
+    /// folder of hundreds of .png/.pdf rows reuses one icon instead of calling
+    /// NSWorkspace per cell draw (which janks scrolling). Folders/bundles aren't
+    /// cached — see `node(from:)` / `iconCacheKey`.
+    private static let iconCache = NSCache<NSString, NSImage>()
+
+    private func nameCell(for node: Node) -> NSView {
+        let url = node.url!
         let id = NSUserInterfaceItemIdentifier("name")
         let cell = (content.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
             let cell = NSTableCellView()
@@ -694,11 +722,27 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
             ])
             return cell
         }()
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
-        icon.size = NSSize(width: 16, height: 16)
-        cell.imageView?.image = icon
+        cell.imageView?.image = icon(for: node, url: url)
         cell.textField?.stringValue = displayName(url)
         return cell
+    }
+
+    /// Cache-backed 16×16 icon for a file row. Cacheable rows (plain files keyed
+    /// by extension) share one image; everything else falls back to the per-path
+    /// icon. Sizing the shared instance to 16×16 is idempotent, so it's safe.
+    private func icon(for node: Node, url: URL) -> NSImage {
+        if let key = node.iconCacheKey {
+            if let cached = Self.iconCache.object(forKey: key as NSString) {
+                return cached
+            }
+            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            icon.size = NSSize(width: 16, height: 16)
+            Self.iconCache.setObject(icon, forKey: key as NSString)
+            return icon
+        }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 16, height: 16)
+        return icon
     }
 
     private func textCell(_ text: String, align: NSTextAlignment = .left, secondary: Bool = false) -> NSView {

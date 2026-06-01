@@ -59,6 +59,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.delegate = self
 
+        // Disabled label showing the running build, read at runtime so it always
+        // matches Info.plist rather than a hardcoded string.
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let versionItem = NSMenuItem(title: "Findly \(version)", action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+        menu.addItem(.separator())
+
         // Surfaced only while Full Disk Access is missing, so the user can grant
         // it on their own terms instead of System Settings hijacking focus on
         // every launch.
