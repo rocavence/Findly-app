@@ -30,7 +30,11 @@ final class DrawerWindow: NSPanel {
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         animationBehavior = .none      // we drive the slide ourselves
-        backgroundColor = .windowBackgroundColor
+        // Translucent so the drawer's glass material (a backdrop NSVisualEffectView
+        // in FileBrowserView) blends with the desktop — the macOS 26 Liquid Glass
+        // look. The content panel keeps the file list legible over it.
+        isOpaque = false
+        backgroundColor = .clear
     }
 
     // A panel needs to be allowed to become key so the file browser can take

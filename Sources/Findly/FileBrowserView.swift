@@ -1,5 +1,6 @@
 import AppKit
 import Quartz
+import SwiftUI
 import UniformTypeIdentifiers
 
 /// How the list is ordered. Raw value persists in `Defaults`; `columnKey`
@@ -64,35 +65,26 @@ final class Node {
     var category: FileCategory? { if case .category(let c) = kind { return c }; return nil }
 }
 
-/// One sidebar entry: a standard location, or a section header.
-private struct SidebarItem {
-    let title: String
-    let url: URL?
-    let icon: NSImage?
-    let isSection: Bool
-    /// Stable id (POSIX path) for a reorderable Favorites row; nil otherwise.
-    var dragID: String?
-    /// True only for the Favorites section header — the one drop container.
-    var isFavoritesSection = false
-    var children: [SidebarItem] = []
-}
-
 /// Finder list-view navigation: a sidebar of standard locations beside a
 /// multi-column `NSOutlineView` (Name / Size / Kind / Date) with clickable
 /// sortable headers, inline folder expansion, and collapsible "Group by Kind"
 /// section headers.
 final class FileBrowserView: NSView {
     private let content = FileOutlineView()
-    private let sidebar = NSOutlineView()
+    /// Native SwiftUI sidebar (`.listStyle(.sidebar)`), hosted in AppKit.
+    private let sidebarModel = SidebarModel()
     private var rootURL: URL
     private var rootNodes: [Node] = []
-    private var sidebarItems: [SidebarItem] = []
     private var titleLabel: NSTextField!
     private var backButton: NSButton!
-    /// Folders we navigated out of, newest last; powers the Back button.
+    private var forwardButton: NSButton!
+    /// Folders we navigated out of / back into, newest last; power Back/Forward.
     private var history: [URL] = []
+    private var forwardStack: [URL] = []
     /// Items the context menu acts on, captured when the menu opens.
     private var contextURLs: [URL] = []
+    /// Live filter text from the toolbar search field (empty = no filter).
+    private var searchText: String = ""
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter(); f.countStyle = .file; return f
@@ -132,41 +124,99 @@ final class FileBrowserView: NSView {
         self.rootURL = root
         super.init(frame: .zero)
 
-        sidebarItems = makeSidebarItems()
+        // Round the whole drawer into a Finder-style floating card: a continuous
+        // (squircle) corner curve clipped on all sides, so the sidebar's outer
+        // corners and the content both follow the same radius as a real window.
+        wantsLayer = true
+        layer?.cornerRadius = 14
+        layer?.cornerCurve = .continuous
+        layer?.masksToBounds = true
+
         configureContent()
-        configureSidebar()
+
+        // Wire the SwiftUI sidebar's callbacks back into the AppKit navigation
+        // and the local-order persistence, then host it.
+        sidebarModel.onSelect = { [weak self] url in
+            guard let self, url != self.rootURL else { return }
+            self.navigate(into: url)
+        }
+        sidebarModel.onReorderFavorites = { entries in
+            Defaults.sidebarOrder = entries.map(\.id)
+        }
+        let sidebarHost = NSHostingView(rootView: FindlySidebar(model: sidebarModel))
+        sidebarHost.translatesAutoresizingMaskIntoConstraints = false
+        sidebarHost.wantsLayer = true
+        sidebarHost.layer?.cornerRadius = 10
+        sidebarHost.layer?.cornerCurve = .continuous
+        sidebarHost.layer?.masksToBounds = true
 
         let toolbar = makeToolbar()
-        let sidebarScroll = scrolled(sidebar, drawsBackground: false)
         let contentScroll = scrolled(content, drawsBackground: false)
-        let split = NSSplitView()
+
+        // Glass backdrop: the whole drawer rides on a translucent material, so on
+        // macOS 26 it adopts the Liquid Glass look. The sidebar pane shows this
+        // material straight through its transparent list (the lighter zone).
+        let backdrop = NSVisualEffectView()
+        backdrop.material = .sidebar
+        backdrop.blendingMode = .behindWindow
+        backdrop.state = .active
+        backdrop.translatesAutoresizingMaskIntoConstraints = false
+
+        // The file list rides on a more solid content panel so text stays legible
+        // over the glass — Finder's two-tone sidebar/content split. The straight
+        // divider edge matches Finder; the outer corners are rounded by the
+        // drawer container above.
+        let contentPanel = NSVisualEffectView()
+        contentPanel.material = .contentBackground
+        contentPanel.blendingMode = .withinWindow
+        contentPanel.state = .active
+        contentPanel.wantsLayer = true
+        contentPanel.layer?.cornerRadius = 10
+        contentPanel.layer?.cornerCurve = .continuous
+        contentPanel.layer?.masksToBounds = true
+        contentScroll.translatesAutoresizingMaskIntoConstraints = false
+        contentPanel.addSubview(contentScroll)
+        NSLayoutConstraint.activate([
+            contentScroll.topAnchor.constraint(equalTo: contentPanel.topAnchor),
+            contentScroll.bottomAnchor.constraint(equalTo: contentPanel.bottomAnchor),
+            contentScroll.leadingAnchor.constraint(equalTo: contentPanel.leadingAnchor),
+            contentScroll.trailingAnchor.constraint(equalTo: contentPanel.trailingAnchor),
+        ])
+
+        let split = GapSplitView()
         split.translatesAutoresizingMaskIntoConstraints = false
         split.isVertical = true
         split.dividerStyle = .thin
-        split.addArrangedSubview(sidebarScroll)
-        split.addArrangedSubview(contentScroll)
+        split.addArrangedSubview(sidebarHost)
+        split.addArrangedSubview(contentPanel)
         // Without this the sidebar pane grabs the whole width and the file list
         // collapses to nothing. Pin the sidebar narrow; the list takes the rest.
-        sidebarScroll.widthAnchor.constraint(equalToConstant: 170).isActive = true
+        sidebarHost.widthAnchor.constraint(equalToConstant: 170).isActive = true
         split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
         split.setHoldingPriority(.defaultLow, forSubviewAt: 1)
 
-        addSubview(toolbar)
+        addSubview(backdrop)
         addSubview(split)
+        addSubview(toolbar)   // glass toolbar floats above, over the backdrop
         NSLayoutConstraint.activate([
+            backdrop.topAnchor.constraint(equalTo: topAnchor),
+            backdrop.bottomAnchor.constraint(equalTo: bottomAnchor),
+            backdrop.leadingAnchor.constraint(equalTo: leadingAnchor),
+            backdrop.trailingAnchor.constraint(equalTo: trailingAnchor),
             toolbar.topAnchor.constraint(equalTo: topAnchor),
             toolbar.leadingAnchor.constraint(equalTo: leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: trailingAnchor),
-            toolbar.heightAnchor.constraint(equalToConstant: 38),
-            split.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
-            split.bottomAnchor.constraint(equalTo: bottomAnchor),
-            split.leadingAnchor.constraint(equalTo: leadingAnchor),
-            split.trailingAnchor.constraint(equalTo: trailingAnchor),
+            toolbar.heightAnchor.constraint(equalToConstant: 42),
+            // Inset the two rounded cards from the window edges so the glass
+            // backdrop shows around and between them — the macOS 26 inset look.
+            split.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 2),
+            split.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            split.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            split.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
         ])
 
         loadRoot(rootURL)
-        sidebar.reloadData()
-        sidebar.expandItem(nil, expandChildren: true)
+        syncSidebar()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -195,13 +245,19 @@ final class FileBrowserView: NSView {
             column.width = spec.width
             column.minWidth = spec.min
             column.sortDescriptorPrototype = NSSortDescriptor(key: spec.key, ascending: true)
+            // Smaller, secondary-gray header text like Finder's list view.
+            column.headerCell.font = .systemFont(ofSize: 11, weight: .regular)
+            column.headerCell.textColor = .secondaryLabelColor
             content.addTableColumn(column)
             if spec.key == "name" { content.outlineTableColumn = column }
         }
+        // Full-width selection like Finder's list view; clear background lets the
+        // glass content panel show through.
         content.style = .plain
+        content.backgroundColor = .clear
         // Row height tracks the Finder-derived text size (icons stay 16pt).
         content.rowSizeStyle = .custom
-        content.rowHeight = max(18, ceil(Self.listTextSize) + 6)
+        content.rowHeight = max(20, ceil(Self.listTextSize) + 8)
         content.usesAlternatingRowBackgroundColors = false
         content.gridStyleMask = []
         content.indentationPerLevel = 14
@@ -228,47 +284,35 @@ final class FileBrowserView: NSView {
         content.menu = menu
     }
 
-    private func configureSidebar() {
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("sidebar"))
-        sidebar.addTableColumn(column)
-        sidebar.outlineTableColumn = column
-        sidebar.headerView = nil
-        sidebar.style = .sourceList
-        sidebar.floatsGroupRows = false
-        sidebar.indentationPerLevel = 6
-        sidebar.allowsEmptySelection = true
-        sidebar.rowSizeStyle = .default
-        sidebar.dataSource = self
-        sidebar.delegate = self
-        sidebar.target = self
-        sidebar.action = #selector(sidebarClicked)
-        // Favorites rows can be dragged to reorder (a local override on top of
-        // the Finder-mirrored order); see acceptDrop's sidebar branch.
-        sidebar.registerForDraggedTypes([Self.sidebarType])
-        sidebar.setDraggingSourceOperationMask(.move, forLocal: true)
-    }
-
-    /// Pasteboard type carrying a Favorites row's `dragID` during a reorder.
-    static let sidebarType = NSPasteboard.PasteboardType("com.findly.sidebar-favorite")
-
     // MARK: - Toolbar
 
     private func makeToolbar() -> NSView {
         let bar = NSView()
         bar.translatesAutoresizingMaskIntoConstraints = false
 
-        let back = NSButton(image: NSImage(systemSymbolName: "chevron.backward", accessibilityDescription: "Back") ?? NSImage(),
-                            target: self, action: #selector(goBack))
-        back.bezelStyle = .toolbar
-        back.imageScaling = .scaleProportionallyDown
-        back.isEnabled = false
-        back.translatesAutoresizingMaskIntoConstraints = false
-        back.toolTip = NSLocalizedString("Back", comment: "Toolbar back button tooltip")
-        bar.addSubview(back)
+        // Paired back / forward chevrons, like Finder's toolbar.
+        func navButton(_ symbol: String, _ tip: String, _ action: Selector) -> NSButton {
+            let b = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: tip) ?? NSImage(),
+                             target: self, action: action)
+            b.bezelStyle = .toolbar
+            b.isBordered = false
+            b.imageScaling = .scaleProportionallyDown
+            b.imagePosition = .imageOnly
+            b.contentTintColor = .secondaryLabelColor
+            b.isEnabled = false
+            b.toolTip = tip
+            b.translatesAutoresizingMaskIntoConstraints = false
+            b.widthAnchor.constraint(equalToConstant: 24).isActive = true
+            return b
+        }
+        let back = navButton("chevron.backward", NSLocalizedString("Back", comment: "Toolbar back button tooltip"), #selector(goBack))
+        let forward = navButton("chevron.forward", NSLocalizedString("Forward", comment: "Toolbar forward button tooltip"), #selector(goForward))
         backButton = back
+        forwardButton = forward
+        bar.addSubview(back); bar.addSubview(forward)
 
         titleLabel = NSTextField(labelWithString: "")
-        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.font = .systemFont(ofSize: Self.listTextSize + 1, weight: .semibold)
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         bar.addSubview(titleLabel)
@@ -280,29 +324,42 @@ final class FileBrowserView: NSView {
         group.translatesAutoresizingMaskIntoConstraints = false
         bar.addSubview(group)
 
-        let separator = NSBox()
-        separator.boxType = .separator
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        bar.addSubview(separator)
+        // Finder-style search field that live-filters the current folder.
+        let search = NSSearchField()
+        search.placeholderString = NSLocalizedString("Search", comment: "Toolbar search field placeholder")
+        search.controlSize = .regular
+        search.delegate = self
+        search.sendsWholeSearchString = false
+        search.translatesAutoresizingMaskIntoConstraints = false
+        bar.addSubview(search)
 
+        // No hard separator line — the content panel's material edge below the
+        // toolbar provides the Liquid Glass delineation.
         NSLayoutConstraint.activate([
-            back.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 8),
+            back.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 12),
             back.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
-            back.widthAnchor.constraint(equalToConstant: 26),
-            titleLabel.leadingAnchor.constraint(equalTo: back.trailingAnchor, constant: 6),
+            forward.leadingAnchor.constraint(equalTo: back.trailingAnchor, constant: 2),
+            forward.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: forward.trailingAnchor, constant: 10),
             titleLabel.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
-            group.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -12),
+            search.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -12),
+            search.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
+            search.widthAnchor.constraint(equalToConstant: 150),
+            group.trailingAnchor.constraint(equalTo: search.leadingAnchor, constant: -12),
             group.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: group.leadingAnchor, constant: -8),
-            separator.leadingAnchor.constraint(equalTo: bar.leadingAnchor),
-            separator.trailingAnchor.constraint(equalTo: bar.trailingAnchor),
-            separator.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
         ])
         return bar
     }
 
     @objc private func toggleGroup(_ sender: NSButton) {
         Defaults.groupByKind = (sender.state == .on)
+        reloadListing()
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        guard let field = obj.object as? NSSearchField else { return }
+        searchText = field.stringValue
         reloadListing()
     }
 
@@ -326,13 +383,6 @@ final class FileBrowserView: NSView {
     private func reloadListing() {
         rootNodes = makeNodes(forDirectory: rootURL)
         content.reloadData()
-    }
-
-    @objc private func sidebarClicked() {
-        guard sidebar.clickedRow >= 0,
-              let item = sidebar.item(atRow: sidebar.clickedRow) as? SidebarItem,
-              let url = item.url, url != rootURL else { return }
-        navigate(into: url)   // push history so Back works after a sidebar jump
     }
 
     // MARK: - Open / QuickLook
@@ -364,18 +414,28 @@ final class FileBrowserView: NSView {
 
     private func navigate(into url: URL) {
         history.append(rootURL)
+        forwardStack.removeAll()       // a new branch clears the forward trail
         loadRoot(url)
-        updateBackButton()
+        updateNavButtons()
     }
 
     @objc private func goBack() {
         guard let previous = history.popLast() else { return }
+        forwardStack.append(rootURL)
         loadRoot(previous)
-        updateBackButton()
+        updateNavButtons()
     }
 
-    private func updateBackButton() {
+    @objc private func goForward() {
+        guard let next = forwardStack.popLast() else { return }
+        history.append(rootURL)
+        loadRoot(next)
+        updateNavButtons()
+    }
+
+    private func updateNavButtons() {
         backButton.isEnabled = !history.isEmpty
+        forwardButton.isEnabled = !forwardStack.isEmpty
     }
 
     // MARK: - Context menu
@@ -554,7 +614,10 @@ final class FileBrowserView: NSView {
         }
         // Dedupe by name — the Applications merge can surface two "Utilities".
         var seen = Set<String>()
-        return entries.filter { seen.insert($0.name).inserted }
+        let deduped = entries.filter { seen.insert($0.name).inserted }
+        // Live filter from the toolbar search field (current folder, by name).
+        guard !searchText.isEmpty else { return deduped }
+        return deduped.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     /// Directory/package/type of `url`, following a symlink to its target.
@@ -634,48 +697,51 @@ final class FileBrowserView: NSView {
 
     // MARK: - Sidebar contents
 
-    /// Re-read Finder's Favorites and rebuild the sidebar so it stays in sync
-    /// with whatever the user has in Finder. Called on each show (see
-    /// `DrawerController`) and at init.
+    /// Re-read Finder's Favorites and push them into the SwiftUI sidebar model so
+    /// the native list mirrors whatever the user has in Finder. Called on each
+    /// show (see `DrawerController`) and at init.
     func syncSidebar() {
-        sidebarItems = makeSidebarItems()
-        sidebar.reloadData()
-        sidebar.expandItem(nil, expandChildren: true)
-    }
-
-    private func makeSidebarItems() -> [SidebarItem] {
-        let favorites = orderedFavorites(makeFavoriteItems())
-        let locations = [sidebarLocation(URL(fileURLWithPath: "/"))].compactMap { $0 }
-        return [
-            SidebarItem(title: NSLocalizedString("Favorites", comment: "Sidebar section header"),
-                        url: nil, icon: nil, isSection: true, isFavoritesSection: true, children: favorites),
-            SidebarItem(title: NSLocalizedString("Locations", comment: "Sidebar section header"),
-                        url: nil, icon: nil, isSection: true, children: locations),
-        ]
+        sidebarModel.favorites = orderedFavorites(makeFavoriteEntries())
+        sidebarModel.locations = [locationEntry(for: URL(fileURLWithPath: "/"))].compactMap { $0 }
     }
 
     /// Favorites mirrored from Finder, falling back to a built-in set when
     /// Finder's list can't be read (e.g. Full Disk Access not yet granted).
-    private func makeFavoriteItems() -> [SidebarItem] {
+    private func makeFavoriteEntries() -> [SidebarEntry] {
         let finder = finderFavorites()
         let urls = finder.isEmpty ? builtInFavoriteURLs() : finder
-        return urls.compactMap { favoriteItem(for: $0) }
+        return urls.compactMap { favoriteEntry(for: $0) }
     }
 
-    private func favoriteItem(for url: URL) -> SidebarItem? {
+    private func favoriteEntry(for url: URL) -> SidebarEntry? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
-        icon.size = NSSize(width: 16, height: 16)
-        var item = SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
-        item.dragID = url.path
-        return item
+        return SidebarEntry(id: url.path, title: displayName(url), url: url, systemSymbol: sidebarSymbol(for: url))
     }
 
-    private func sidebarLocation(_ url: URL) -> SidebarItem? {
+    private func locationEntry(for url: URL) -> SidebarEntry? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
-        icon.size = NSSize(width: 16, height: 16)
-        return SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
+        return SidebarEntry(id: url.path, title: displayName(url), url: url, systemSymbol: sidebarSymbol(for: url))
+    }
+
+    /// SF Symbol for a standard location — SwiftUI's sidebar renders it like
+    /// Finder's tinted icons. nil → the row uses the file's real icon, so e.g.
+    /// Dropbox keeps its brand icon.
+    private func sidebarSymbol(for url: URL) -> String? {
+        let fm = FileManager.default
+        let path = url.path
+        func std(_ d: FileManager.SearchPathDirectory) -> String? {
+            (try? fm.url(for: d, in: .userDomainMask, appropriateFor: nil, create: false))?.path
+        }
+        if path == fm.homeDirectoryForCurrentUser.path { return "house" }
+        if path == std(.desktopDirectory) { return "menubar.dock.rectangle" }
+        if path == std(.downloadsDirectory) { return "arrow.down.circle" }
+        if path == std(.documentDirectory) { return "doc" }
+        if path == std(.moviesDirectory) { return "film" }
+        if path == std(.musicDirectory) { return "music.note" }
+        if path == std(.picturesDirectory) { return "photo" }
+        if path == "/Applications" || path == "/System/Applications" { return "square.grid.2x2" }
+        if path == "/" { return "internaldrive" }
+        return nil
     }
 
     private func builtInFavoriteURLs() -> [URL] {
@@ -730,34 +796,17 @@ final class FileBrowserView: NSView {
 
     /// Apply the user's saved local order (by path) over the discovered set:
     /// known rows take their saved rank, freshly-appeared Finder rows keep their
-    /// natural order at the end.
-    private func orderedFavorites(_ items: [SidebarItem]) -> [SidebarItem] {
+    /// natural order at the end. Reordering itself happens in the SwiftUI list
+    /// (`.onMove`), which persists `Defaults.sidebarOrder` via the model callback.
+    private func orderedFavorites(_ items: [SidebarEntry]) -> [SidebarEntry] {
         let order = Defaults.sidebarOrder
         guard !order.isEmpty else { return items }
         let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
         return items.enumerated().sorted {
-            let ra = rank[$0.element.dragID ?? ""] ?? Int.max
-            let rb = rank[$1.element.dragID ?? ""] ?? Int.max
+            let ra = rank[$0.element.id] ?? Int.max
+            let rb = rank[$1.element.id] ?? Int.max
             return ra != rb ? ra < rb : $0.offset < $1.offset
         }.map(\.element)
-    }
-
-    /// Move a Favorites row to `index` within the section, persist the new order
-    /// locally, and refresh. Returns false if the row vanished mid-drag.
-    private func reorderFavorite(dragID: String, to index: Int) -> Bool {
-        guard let favIdx = sidebarItems.firstIndex(where: { $0.isFavoritesSection }) else { return false }
-        var favorites = sidebarItems[favIdx].children
-        guard let from = favorites.firstIndex(where: { $0.dragID == dragID }) else { return false }
-        let moved = favorites.remove(at: from)
-        var insert = index
-        if from < insert { insert -= 1 }              // adjust for the removal
-        insert = max(0, min(insert, favorites.count))
-        favorites.insert(moved, at: insert)
-        sidebarItems[favIdx].children = favorites
-        Defaults.sidebarOrder = favorites.compactMap(\.dragID)
-        sidebar.reloadData()
-        sidebar.expandItem(nil, expandChildren: true)
-        return true
     }
 }
 
@@ -765,25 +814,16 @@ final class FileBrowserView: NSView {
 
 extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        if outlineView === sidebar {
-            guard let item = item as? SidebarItem else { return sidebarItems.count }
-            return item.children.count
-        }
         guard let node = item as? Node else { return rootNodes.count }
         return children(of: node).count
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        if outlineView === sidebar {
-            guard let item = item as? SidebarItem else { return sidebarItems[index] }
-            return item.children[index]
-        }
         guard let node = item as? Node else { return rootNodes[index] }
         return children(of: node)[index]
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-        if outlineView === sidebar { return (item as? SidebarItem)?.isSection ?? false }
         guard let node = item as? Node else { return false }
         switch node.kind {
         case .category:      return false   // static header, never collapses
@@ -792,12 +832,10 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     }
 
     func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        if outlineView === sidebar { return (item as? SidebarItem)?.isSection ?? false }
         return (item as? Node)?.category != nil
     }
 
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        if outlineView === sidebar { return (item as? SidebarItem)?.url != nil }
         return (item as? Node)?.category == nil
     }
 
@@ -815,12 +853,6 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     /// Finder, other apps, or a folder elsewhere in this list. Category headers
     /// aren't draggable.
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-        if outlineView === sidebar {
-            guard let dragID = (item as? SidebarItem)?.dragID else { return nil }
-            let pb = NSPasteboardItem()
-            pb.setString(dragID, forType: Self.sidebarType)
-            return pb
-        }
         guard let url = (item as? Node)?.url else { return nil }
         return url as NSURL
     }
@@ -830,14 +862,6 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     /// highlight to the whole folder/list — we never insert between rows.
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo,
                      proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
-        if outlineView === sidebar {
-            // Only a reorder within the Favorites section, dropped in a gap
-            // (index >= 0) so the insertion line shows between rows.
-            guard info.draggingPasteboard.availableType(from: [Self.sidebarType]) != nil,
-                  (item as? SidebarItem)?.isFavoritesSection == true, index >= 0
-            else { return [] }
-            return .move
-        }
         guard info.draggingPasteboard.canReadObject(forClasses: [NSURL.self],
                                                     options: [.urlReadingFileURLsOnly: true])
         else { return [] }
@@ -852,10 +876,6 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo,
                      item: Any?, childIndex index: Int) -> Bool {
-        if outlineView === sidebar {
-            guard let dragID = info.draggingPasteboard.string(forType: Self.sidebarType) else { return false }
-            return reorderFavorite(dragID: dragID, to: index)
-        }
         let sources = draggedFileURLs(from: info)
         guard !sources.isEmpty else { return false }
         let destination = dropDestinationURL(for: item).resolvingSymlinksInPath()
@@ -937,8 +957,6 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     }
 
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-        if outlineView === sidebar { return sidebarView(item as! SidebarItem) }
-
         let node = item as! Node
         if let category = node.category {
             // Group section header. NSOutlineView requests a full-width group
@@ -1058,51 +1076,6 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
         return cell
     }
 
-    private func sidebarView(_ item: SidebarItem) -> NSView {
-        if item.isSection {
-            let id = NSUserInterfaceItemIdentifier("sbSection")
-            let cell = (sidebar.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
-                let cell = NSTableCellView()
-                cell.identifier = id
-                let label = NSTextField(labelWithString: "")
-                label.translatesAutoresizingMaskIntoConstraints = false
-                cell.addSubview(label); cell.textField = label
-                NSLayoutConstraint.activate([
-                    label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
-                    label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                ])
-                return cell
-            }()
-            cell.textField?.stringValue = item.title
-            return cell
-        }
-        let id = NSUserInterfaceItemIdentifier("sbItem")
-        let cell = (sidebar.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
-            let cell = NSTableCellView()
-            cell.identifier = id
-            let icon = NSImageView()
-            icon.translatesAutoresizingMaskIntoConstraints = false
-            let label = NSTextField(labelWithString: "")
-            label.translatesAutoresizingMaskIntoConstraints = false
-            label.lineBreakMode = .byTruncatingTail
-            cell.addSubview(icon); cell.addSubview(label)
-            cell.imageView = icon; cell.textField = label
-            NSLayoutConstraint.activate([
-                icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
-                icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                icon.widthAnchor.constraint(equalToConstant: 16),
-                icon.heightAnchor.constraint(equalToConstant: 16),
-                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
-                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            ])
-            return cell
-        }()
-        cell.imageView?.image = item.icon
-        cell.textField?.font = .systemFont(ofSize: Self.listTextSize)
-        cell.textField?.stringValue = item.title
-        return cell
-    }
 }
 
 // MARK: - QuickLook
@@ -1161,6 +1134,15 @@ extension FileBrowserView: NSMenuDelegate {
         if !many { add(NSLocalizedString("Rename…", comment: "Context menu: rename item"), #selector(ctxRename)) }
         add(NSLocalizedString("Move to Trash", comment: "Context menu: move item to Trash"), #selector(ctxTrash))
     }
+}
+
+extension FileBrowserView: NSSearchFieldDelegate {}
+
+/// Vertical split with a wide, invisible divider, so the sidebar and content
+/// read as two separate rounded cards with the glass backdrop showing between.
+final class GapSplitView: NSSplitView {
+    override var dividerThickness: CGFloat { 8 }
+    override func drawDivider(in rect: NSRect) { /* transparent gap */ }
 }
 
 /// NSOutlineView subclass that routes space → QuickLook and Return → open.
