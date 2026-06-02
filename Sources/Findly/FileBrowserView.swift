@@ -447,10 +447,12 @@ final class FileBrowserView: NSView {
             var rows: [Node] = []
             for category in FileCategory.allCases {
                 guard var items = buckets[category], !items.isEmpty else { continue }
-                // Within each kind section, order by date modified (newest
-                // first); fall back to a natural-name compare on ties.
+                // Within each kind section, order by date modified — but honour
+                // the asc/desc toggle: descending (the default) is newest first,
+                // ascending is oldest first. Natural-name compare breaks ties.
+                let ascending = Defaults.sortAscending
                 items.sort { a, b in
-                    if a.date != b.date { return a.date > b.date }
+                    if a.date != b.date { return ascending ? a.date < b.date : a.date > b.date }
                     return a.name.localizedStandardCompare(b.name) == .orderedAscending
                 }
                 rows.append(Node(.category(category)))
