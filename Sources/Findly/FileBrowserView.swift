@@ -191,6 +191,12 @@ final class FileBrowserView: NSView {
         content.dataSource = self
         content.delegate = self
         content.target = self
+        // Drag & drop: rows drag out to Finder/other apps, and the list accepts
+        // file drops to move/copy into the shown folder (or onto a folder row).
+        // Allow copy/move/link when dragging out; copy/move when dragging in.
+        content.registerForDraggedTypes([.fileURL])
+        content.setDraggingSourceOperationMask([.copy, .move, .link], forLocal: false)
+        content.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         content.doubleAction = #selector(handleDoubleClick)
         content.onSpaceKey = { [weak self] in self?.toggleQuickLook() }
         content.onEnterKey = { [weak self] in self?.activateSelection() }
@@ -666,6 +672,117 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
         Defaults.sortKey = FileSort(columnKey: key)
         Defaults.sortAscending = descriptor.ascending
         reloadListing()
+    }
+
+    // MARK: Drag & drop
+
+    /// Drag source: a file/folder row vends its URL so it can be dropped into
+    /// Finder, other apps, or a folder elsewhere in this list. Category headers
+    /// aren't draggable.
+    func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+        guard outlineView === content, let url = (item as? Node)?.url else { return nil }
+        return url as NSURL
+    }
+
+    /// Drop target: accept file URLs onto a folder row (into that folder) or
+    /// anywhere else in the list (into the folder currently shown). Retarget the
+    /// highlight to the whole folder/list — we never insert between rows.
+    func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo,
+                     proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
+        guard outlineView === content,
+              info.draggingPasteboard.canReadObject(forClasses: [NSURL.self],
+                                                    options: [.urlReadingFileURLsOnly: true])
+        else { return [] }
+
+        if let node = item as? Node, node.isFolder {
+            outlineView.setDropItem(node, dropChildIndex: NSOutlineViewDropOnItemIndex)
+        } else {
+            outlineView.setDropItem(nil, dropChildIndex: NSOutlineViewDropOnItemIndex)
+        }
+        return dropOperation(info: info, into: dropDestinationURL(for: item))
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo,
+                     item: Any?, childIndex index: Int) -> Bool {
+        guard outlineView === content else { return false }
+        let sources = draggedFileURLs(from: info)
+        guard !sources.isEmpty else { return false }
+        let destination = dropDestinationURL(for: item).resolvingSymlinksInPath()
+        let op = dropOperation(info: info, into: destination)
+        guard op == .move || op == .copy else { return false }
+
+        let fm = FileManager.default
+        var didChange = false
+        for src in sources {
+            let srcParent = src.deletingLastPathComponent().resolvingSymlinksInPath()
+            if op == .move, srcParent == destination { continue }   // already here
+            let target = uniqueDestination(for: src.lastPathComponent, in: destination,
+                                           preferCopySuffix: op == .copy && srcParent == destination)
+            do {
+                if op == .move { try fm.moveItem(at: src, to: target) }
+                else           { try fm.copyItem(at: src, to: target) }
+                didChange = true
+            } catch {
+                NSSound.beep()
+            }
+        }
+        if didChange { reloadListing() }
+        return didChange
+    }
+
+    /// Folder a drop lands in: a folder row's URL, else the folder shown now.
+    private func dropDestinationURL(for item: Any?) -> URL {
+        if let node = item as? Node, node.isFolder, let url = node.url { return url }
+        return rootURL
+    }
+
+    private func draggedFileURLs(from info: NSDraggingInfo) -> [URL] {
+        let opts: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        return info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: opts) as? [URL] ?? []
+    }
+
+    /// Finder semantics: move within a volume, copy across volumes; Option/Command
+    /// modifiers arrive already folded into the drag's operation mask. Refuse to
+    /// drop a folder into itself or a descendant.
+    private func dropOperation(info: NSDraggingInfo, into destination: URL) -> NSDragOperation {
+        let sources = draggedFileURLs(from: info)
+        guard !sources.isEmpty else { return [] }
+        for src in sources {
+            let s = src.resolvingSymlinksInPath().path
+            if destination.path == s || destination.path.hasPrefix(s + "/") { return [] }
+        }
+        let mask = info.draggingSourceOperationMask
+        if sameVolume(sources[0], destination) {
+            if mask.contains(.move) { return .move }
+            if mask.contains(.copy) { return .copy }
+            return []
+        }
+        return mask.contains(.copy) ? .copy : []
+    }
+
+    private func sameVolume(_ a: URL, _ b: URL) -> Bool {
+        let va = (try? a.resourceValues(forKeys: [.volumeIdentifierKey]))?.volumeIdentifier as? NSObject
+        let vb = (try? b.resourceValues(forKeys: [.volumeIdentifierKey]))?.volumeIdentifier as? NSObject
+        if let va, let vb { return va.isEqual(vb) }
+        return true   // unknown → assume same volume (default to move)
+    }
+
+    /// A non-existing URL in `dir` for `name`, so a drop never overwrites.
+    /// `preferCopySuffix` starts from "name copy" (copying into the same folder).
+    private func uniqueDestination(for name: String, in dir: URL, preferCopySuffix: Bool) -> URL {
+        let fm = FileManager.default
+        let ext = (name as NSString).pathExtension
+        let base = (name as NSString).deletingPathExtension
+        func url(_ stem: String) -> URL {
+            dir.appendingPathComponent(ext.isEmpty ? stem : "\(stem).\(ext)")
+        }
+        var candidate = url(preferCopySuffix ? "\(base) copy" : base)
+        var i = 2
+        while fm.fileExists(atPath: candidate.path) {
+            candidate = url(preferCopySuffix ? "\(base) copy \(i)" : "\(base) \(i)")
+            i += 1
+        }
+        return candidate
     }
 
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
