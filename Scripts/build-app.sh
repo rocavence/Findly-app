@@ -38,8 +38,17 @@ done
 # PkgInfo is optional but conventional.
 printf 'APPL????' > "${CONTENTS}/PkgInfo"
 
-echo "→ ad-hoc codesign"
-codesign --force --deep --sign - "${APP_DIR}"
+# Sign with a stable self-signed identity when present, so macOS keeps the
+# Full Disk Access grant across rebuilds (ad-hoc signatures change every build,
+# which silently invalidates the TCC grant). Falls back to ad-hoc otherwise.
+SIGN_IDENTITY="Findly Self-Signed"
+if security find-identity -p codesigning 2>/dev/null | grep -q "${SIGN_IDENTITY}"; then
+  echo "→ codesign with ${SIGN_IDENTITY}"
+  codesign --force --deep --sign "${SIGN_IDENTITY}" --timestamp=none "${APP_DIR}"
+else
+  echo "→ ad-hoc codesign (no '${SIGN_IDENTITY}' identity found)"
+  codesign --force --deep --sign - "${APP_DIR}"
+fi
 
 echo
 echo "Done. Open with:  open ${APP_DIR}"

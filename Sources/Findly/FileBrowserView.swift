@@ -691,24 +691,30 @@ final class FileBrowserView: NSView {
     }
 
     /// Finder's sidebar Favorites, read from its shared-file-list store so our
-    /// sidebar mirrors Finder. The `.sfl3`/`.sfl2` file is an NSKeyedArchiver
-    /// archive; we pull every resolvable, reachable file bookmark out, in stored
-    /// order. Returns [] when the file is absent or unreadable — notably without
-    /// Full Disk Access, which is the same gate Finder's store sits behind — so
-    /// the caller falls back to a built-in list.
+    /// sidebar mirrors Finder. The `.sfl4`/`.sfl3`/`.sfl2` file is an
+    /// NSKeyedArchiver archive of plain NSDictionary/NSArray/NSData (no custom
+    /// classes), so we unarchive it and walk the ordered `items` array, pulling
+    /// each item's `Bookmark` and resolving it to a reachable URL — preserving
+    /// Finder's exact order. Returns [] when the store is absent or unreadable —
+    /// notably without Full Disk Access, the same gate Finder's store sits
+    /// behind — so the caller falls back to a built-in list.
     private func finderFavorites() -> [URL] {
         let dir = ("~/Library/Application Support/com.apple.sharedfilelist" as NSString).expandingTildeInPath
-        let names = ["com.apple.LSSharedFileList.FavoriteItems.sfl3",
-                     "com.apple.LSSharedFileList.FavoriteItems.sfl2"]
-        for name in names {
+        for name in ["com.apple.LSSharedFileList.FavoriteItems.sfl4",
+                     "com.apple.LSSharedFileList.FavoriteItems.sfl3",
+                     "com.apple.LSSharedFileList.FavoriteItems.sfl2"] {
             let url = URL(fileURLWithPath: dir).appendingPathComponent(name)
             guard let data = try? Data(contentsOf: url),
-                  let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-                  let objects = plist["$objects"] as? [Any] else { continue }
+                  let unarchiver = try? NSKeyedUnarchiver(forReadingFrom: data) else { continue }
+            unarchiver.requiresSecureCoding = false
+            let root = unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey)
+            unarchiver.finishDecoding()
+            guard let dict = root as? [String: Any],
+                  let items = dict["items"] as? [[String: Any]] else { continue }
             var urls: [URL] = []
             var seen = Set<String>()
-            for obj in objects {
-                guard let bookmark = obj as? Data, bookmark.count > 4 else { continue }
+            for item in items {
+                guard let bookmark = item["Bookmark"] as? Data else { continue }  // skip AirDrop/Recents/etc.
                 var stale = false
                 guard let resolved = try? URL(resolvingBookmarkData: bookmark, options: [],
                                               relativeTo: nil, bookmarkDataIsStale: &stale),
