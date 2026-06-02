@@ -70,6 +70,10 @@ private struct SidebarItem {
     let url: URL?
     let icon: NSImage?
     let isSection: Bool
+    /// Stable id (POSIX path) for a reorderable Favorites row; nil otherwise.
+    var dragID: String?
+    /// True only for the Favorites section header — the one drop container.
+    var isFavoritesSection = false
     var children: [SidebarItem] = []
 }
 
@@ -238,7 +242,14 @@ final class FileBrowserView: NSView {
         sidebar.delegate = self
         sidebar.target = self
         sidebar.action = #selector(sidebarClicked)
+        // Favorites rows can be dragged to reorder (a local override on top of
+        // the Finder-mirrored order); see acceptDrop's sidebar branch.
+        sidebar.registerForDraggedTypes([Self.sidebarType])
+        sidebar.setDraggingSourceOperationMask(.move, forLocal: true)
     }
+
+    /// Pasteboard type carrying a Favorites row's `dragID` during a reorder.
+    static let sidebarType = NSPasteboard.PasteboardType("com.findly.sidebar-favorite")
 
     // MARK: - Toolbar
 
@@ -623,30 +634,124 @@ final class FileBrowserView: NSView {
 
     // MARK: - Sidebar contents
 
+    /// Re-read Finder's Favorites and rebuild the sidebar so it stays in sync
+    /// with whatever the user has in Finder. Called on each show (see
+    /// `DrawerController`) and at init.
+    func syncSidebar() {
+        sidebarItems = makeSidebarItems()
+        sidebar.reloadData()
+        sidebar.expandItem(nil, expandChildren: true)
+    }
+
     private func makeSidebarItems() -> [SidebarItem] {
-        let fm = FileManager.default
-        func loc(_ url: URL?, _ fallback: String) -> SidebarItem? {
-            guard let url, fm.fileExists(atPath: url.path) else { return nil }
-            let icon = NSWorkspace.shared.icon(forFile: url.path)
-            icon.size = NSSize(width: 16, height: 16)
-            return SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
-        }
-        let home = fm.homeDirectoryForCurrentUser
-        let favorites = [
-            loc(try? fm.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Desktop"),
-            loc(try? fm.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Downloads"),
-            loc(try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false), "Documents"),
-            loc(home.appendingPathComponent("Dropbox"), "Dropbox"),
-            loc(home, "Home"),
-            loc(URL(fileURLWithPath: "/Applications"), "Applications"),
-        ].compactMap { $0 }
-        let locations = [
-            loc(URL(fileURLWithPath: "/"), "Computer"),
-        ].compactMap { $0 }
+        let favorites = orderedFavorites(makeFavoriteItems())
+        let locations = [sidebarLocation(URL(fileURLWithPath: "/"))].compactMap { $0 }
         return [
-            SidebarItem(title: NSLocalizedString("Favorites", comment: "Sidebar section header"), url: nil, icon: nil, isSection: true, children: favorites),
-            SidebarItem(title: NSLocalizedString("Locations", comment: "Sidebar section header"), url: nil, icon: nil, isSection: true, children: locations),
+            SidebarItem(title: NSLocalizedString("Favorites", comment: "Sidebar section header"),
+                        url: nil, icon: nil, isSection: true, isFavoritesSection: true, children: favorites),
+            SidebarItem(title: NSLocalizedString("Locations", comment: "Sidebar section header"),
+                        url: nil, icon: nil, isSection: true, children: locations),
         ]
+    }
+
+    /// Favorites mirrored from Finder, falling back to a built-in set when
+    /// Finder's list can't be read (e.g. Full Disk Access not yet granted).
+    private func makeFavoriteItems() -> [SidebarItem] {
+        let finder = finderFavorites()
+        let urls = finder.isEmpty ? builtInFavoriteURLs() : finder
+        return urls.compactMap { favoriteItem(for: $0) }
+    }
+
+    private func favoriteItem(for url: URL) -> SidebarItem? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 16, height: 16)
+        var item = SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
+        item.dragID = url.path
+        return item
+    }
+
+    private func sidebarLocation(_ url: URL) -> SidebarItem? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 16, height: 16)
+        return SidebarItem(title: displayName(url), url: url, icon: icon, isSection: false)
+    }
+
+    private func builtInFavoriteURLs() -> [URL] {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        func std(_ d: FileManager.SearchPathDirectory) -> URL? {
+            try? fm.url(for: d, in: .userDomainMask, appropriateFor: nil, create: false)
+        }
+        return [
+            std(.desktopDirectory), std(.downloadsDirectory), std(.documentDirectory),
+            home.appendingPathComponent("Dropbox"), home, URL(fileURLWithPath: "/Applications"),
+        ].compactMap { $0 }
+    }
+
+    /// Finder's sidebar Favorites, read from its shared-file-list store so our
+    /// sidebar mirrors Finder. The `.sfl3`/`.sfl2` file is an NSKeyedArchiver
+    /// archive; we pull every resolvable, reachable file bookmark out, in stored
+    /// order. Returns [] when the file is absent or unreadable — notably without
+    /// Full Disk Access, which is the same gate Finder's store sits behind — so
+    /// the caller falls back to a built-in list.
+    private func finderFavorites() -> [URL] {
+        let dir = ("~/Library/Application Support/com.apple.sharedfilelist" as NSString).expandingTildeInPath
+        let names = ["com.apple.LSSharedFileList.FavoriteItems.sfl3",
+                     "com.apple.LSSharedFileList.FavoriteItems.sfl2"]
+        for name in names {
+            let url = URL(fileURLWithPath: dir).appendingPathComponent(name)
+            guard let data = try? Data(contentsOf: url),
+                  let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+                  let objects = plist["$objects"] as? [Any] else { continue }
+            var urls: [URL] = []
+            var seen = Set<String>()
+            for obj in objects {
+                guard let bookmark = obj as? Data, bookmark.count > 4 else { continue }
+                var stale = false
+                guard let resolved = try? URL(resolvingBookmarkData: bookmark, options: [],
+                                              relativeTo: nil, bookmarkDataIsStale: &stale),
+                      (try? resolved.checkResourceIsReachable()) == true,
+                      seen.insert(resolved.path).inserted
+                else { continue }
+                urls.append(resolved)
+            }
+            if !urls.isEmpty { return urls }
+        }
+        return []
+    }
+
+    /// Apply the user's saved local order (by path) over the discovered set:
+    /// known rows take their saved rank, freshly-appeared Finder rows keep their
+    /// natural order at the end.
+    private func orderedFavorites(_ items: [SidebarItem]) -> [SidebarItem] {
+        let order = Defaults.sidebarOrder
+        guard !order.isEmpty else { return items }
+        let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+        return items.enumerated().sorted {
+            let ra = rank[$0.element.dragID ?? ""] ?? Int.max
+            let rb = rank[$1.element.dragID ?? ""] ?? Int.max
+            return ra != rb ? ra < rb : $0.offset < $1.offset
+        }.map(\.element)
+    }
+
+    /// Move a Favorites row to `index` within the section, persist the new order
+    /// locally, and refresh. Returns false if the row vanished mid-drag.
+    private func reorderFavorite(dragID: String, to index: Int) -> Bool {
+        guard let favIdx = sidebarItems.firstIndex(where: { $0.isFavoritesSection }) else { return false }
+        var favorites = sidebarItems[favIdx].children
+        guard let from = favorites.firstIndex(where: { $0.dragID == dragID }) else { return false }
+        let moved = favorites.remove(at: from)
+        var insert = index
+        if from < insert { insert -= 1 }              // adjust for the removal
+        insert = max(0, min(insert, favorites.count))
+        favorites.insert(moved, at: insert)
+        sidebarItems[favIdx].children = favorites
+        Defaults.sidebarOrder = favorites.compactMap(\.dragID)
+        sidebar.reloadData()
+        sidebar.expandItem(nil, expandChildren: true)
+        return true
     }
 }
 
@@ -704,7 +809,13 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     /// Finder, other apps, or a folder elsewhere in this list. Category headers
     /// aren't draggable.
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-        guard outlineView === content, let url = (item as? Node)?.url else { return nil }
+        if outlineView === sidebar {
+            guard let dragID = (item as? SidebarItem)?.dragID else { return nil }
+            let pb = NSPasteboardItem()
+            pb.setString(dragID, forType: Self.sidebarType)
+            return pb
+        }
+        guard let url = (item as? Node)?.url else { return nil }
         return url as NSURL
     }
 
@@ -713,8 +824,15 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     /// highlight to the whole folder/list — we never insert between rows.
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo,
                      proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
-        guard outlineView === content,
-              info.draggingPasteboard.canReadObject(forClasses: [NSURL.self],
+        if outlineView === sidebar {
+            // Only a reorder within the Favorites section, dropped in a gap
+            // (index >= 0) so the insertion line shows between rows.
+            guard info.draggingPasteboard.availableType(from: [Self.sidebarType]) != nil,
+                  (item as? SidebarItem)?.isFavoritesSection == true, index >= 0
+            else { return [] }
+            return .move
+        }
+        guard info.draggingPasteboard.canReadObject(forClasses: [NSURL.self],
                                                     options: [.urlReadingFileURLsOnly: true])
         else { return [] }
 
@@ -728,7 +846,10 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo,
                      item: Any?, childIndex index: Int) -> Bool {
-        guard outlineView === content else { return false }
+        if outlineView === sidebar {
+            guard let dragID = info.draggingPasteboard.string(forType: Self.sidebarType) else { return false }
+            return reorderFavorite(dragID: dragID, to: index)
+        }
         let sources = draggedFileURLs(from: info)
         guard !sources.isEmpty else { return false }
         let destination = dropDestinationURL(for: item).resolvingSymlinksInPath()
@@ -972,6 +1093,7 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
             return cell
         }()
         cell.imageView?.image = item.icon
+        cell.textField?.font = .systemFont(ofSize: Self.listTextSize)
         cell.textField?.stringValue = item.title
         return cell
     }

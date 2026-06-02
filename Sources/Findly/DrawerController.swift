@@ -84,6 +84,7 @@ final class DrawerController {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window.makeFirstResponder(browserView.initialFirstResponder)
+        browserView.syncSidebar()   // mirror Finder's Favorites each time we show
 
         animate(from: start, to: target)
         lastEdge = edge

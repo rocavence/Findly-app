@@ -43,6 +43,14 @@ enum Defaults {
         set { UserDefaults.standard.set(newValue, forKey: "Findly.groupByKind") }
     }
 
+    /// User's custom order for the Favorites sidebar rows, stored as their
+    /// stable identifiers (POSIX paths). Empty until the user drags to reorder;
+    /// favorites not present here fall back to their natural discovery order.
+    static var sidebarOrder: [String] {
+        get { UserDefaults.standard.stringArray(forKey: "Findly.sidebarOrder") ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: "Findly.sidebarOrder") }
+    }
+
     /// Manual override for the Finder window corner radius (set via `defaults write`).
     static var cornerRadiusOverride: CGFloat? {
         let v = UserDefaults.standard.double(forKey: "Findly.cornerRadius")
