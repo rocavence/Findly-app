@@ -447,7 +447,12 @@ final class FileBrowserView: NSView {
             var rows: [Node] = []
             for category in FileCategory.allCases {
                 guard var items = buckets[category], !items.isEmpty else { continue }
-                items.sort(by: ordering(foldersFirst: false))
+                // Within each kind section, order by date modified (newest
+                // first); fall back to a natural-name compare on ties.
+                items.sort { a, b in
+                    if a.date != b.date { return a.date > b.date }
+                    return a.name.localizedStandardCompare(b.name) == .orderedAscending
+                }
                 rows.append(Node(.category(category)))
                 rows.append(contentsOf: items.map(node(from:)))
             }
