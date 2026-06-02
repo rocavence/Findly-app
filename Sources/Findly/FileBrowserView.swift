@@ -100,6 +100,21 @@ final class FileBrowserView: NSView {
         return f
     }()
 
+    /// List font size mirrored from Finder's List-view text-size setting
+    /// (com.apple.finder → StandardViewSettings → ListViewSettings → textSize),
+    /// falling back to 13 — Finder's own default — when it can't be read.
+    static let listTextSize: CGFloat = {
+        let defaults = UserDefaults(suiteName: "com.apple.finder")
+        for key in ["StandardViewSettings", "FK_StandardViewSettings"] {
+            if let standard = defaults?.dictionary(forKey: key),
+               let list = standard["ListViewSettings"] as? [String: Any],
+               let size = list["textSize"] as? Double, size > 0 {
+                return CGFloat(size)
+            }
+        }
+        return 13
+    }()
+
     /// The view the controller should focus when the drawer slides in.
     var initialFirstResponder: NSView { content }
 
@@ -180,7 +195,9 @@ final class FileBrowserView: NSView {
             if spec.key == "name" { content.outlineTableColumn = column }
         }
         content.style = .plain
-        content.rowSizeStyle = .default
+        // Row height tracks the Finder-derived text size (icons stay 16pt).
+        content.rowSizeStyle = .custom
+        content.rowHeight = max(18, ceil(Self.listTextSize) + 6)
         content.usesAlternatingRowBackgroundColors = false
         content.gridStyleMask = []
         content.indentationPerLevel = 14
@@ -847,6 +864,7 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
             return cell
         }()
         cell.imageView?.image = icon(for: node, url: url)
+        cell.textField?.font = .systemFont(ofSize: Self.listTextSize)
         cell.textField?.stringValue = displayName(url)
         return cell
     }
@@ -885,6 +903,7 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
             ])
             return cell
         }()
+        cell.textField?.font = .systemFont(ofSize: Self.listTextSize)
         cell.textField?.stringValue = text
         cell.textField?.alignment = align
         cell.textField?.textColor = secondary ? .secondaryLabelColor : .labelColor
