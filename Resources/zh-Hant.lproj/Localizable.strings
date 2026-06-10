@@ -11,6 +11,11 @@
 "Snap Left" = "靠左";
 "Snap Right" = "靠右";
 "Quit Findly" = "結束 Findly";
+"Launch at Login" = "登入時自動啟動";
+
+/* --- Launch-at-login alert (LaunchAtLogin) --- */
+"Move Findly to the Applications folder first" = "請先將 Findly 移到「應用程式」檔案夾";
+"Launch at Login only persists when Findly runs from the Applications folder. Move Findly.app there, relaunch it, and try again." = "只有從「應用程式」檔案夾執行時，「登入時自動啟動」才能保存設定。請將 Findly.app 移到該處並重新啟動後再試一次。";
 
 /* --- File list columns --- */
 "Name" = "名稱";

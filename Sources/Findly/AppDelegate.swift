@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var debugWindow: NSWindow?
     /// "Grant Full Disk Access…" — shown in the menu only while access is missing.
     private var fdaItem: NSMenuItem?
+    /// "Launch at Login" — checkmark mirrors the live SMAppService state.
+    private var launchAtLoginItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Debug/testing: show the browser in an ordinary window, bypassing the
@@ -98,6 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        let launch = NSMenuItem(title: NSLocalizedString("Launch at Login", comment: "Status menu item to start Findly automatically at login"), action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launch.target = self
+        menu.addItem(launch)
+        launchAtLoginItem = launch
+        menu.addItem(.separator())
         let quit = NSMenuItem(title: NSLocalizedString("Quit Findly", comment: "Status menu item to quit the app"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -114,15 +121,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openFDASettings() { FullDiskAccess.openSettings() }
 
+    @objc private func toggleLaunchAtLogin() { LaunchAtLogin.toggle() }
+
     @objc private func quit() { NSApp.terminate(nil) }
 }
 
 extension AppDelegate: NSMenuDelegate {
-    /// Hide the Full Disk Access entry once access is granted.
+    /// Hide the Full Disk Access entry once access is granted, and mirror the
+    /// live login-item state (the user may toggle it in System Settings →
+    /// General → Login Items behind our back).
     func menuNeedsUpdate(_ menu: NSMenu) {
         let granted = FullDiskAccess.isGranted
         fdaItem?.isHidden = granted
         (fdaItem?.representedObject as? NSMenuItem)?.isHidden = granted
+        launchAtLoginItem?.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 }
 

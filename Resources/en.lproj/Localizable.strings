@@ -11,6 +11,11 @@
 "Snap Left" = "Snap Left";
 "Snap Right" = "Snap Right";
 "Quit Findly" = "Quit Findly";
+"Launch at Login" = "Launch at Login";
+
+/* --- Launch-at-login alert (LaunchAtLogin) --- */
+"Move Findly to the Applications folder first" = "Move Findly to the Applications folder first";
+"Launch at Login only persists when Findly runs from the Applications folder. Move Findly.app there, relaunch it, and try again." = "Launch at Login only persists when Findly runs from the Applications folder. Move Findly.app there, relaunch it, and try again.";
 
 /* --- File list columns --- */
 "Name" = "Name";
