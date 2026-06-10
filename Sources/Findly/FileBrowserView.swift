@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Quartz
 import SwiftUI
 import UniformTypeIdentifiers
@@ -83,6 +84,13 @@ final class FileBrowserView: NSView {
     private var forwardStack: [URL] = []
     /// Items the context menu acts on, captured when the menu opens.
     private var contextURLs: [URL] = []
+    /// True while rows are being dragged out of the list (to Finder, a browser
+    /// upload zone, another app's window). `DrawerController` checks this so
+    /// auto-park can't slide the drawer away mid-drag.
+    private(set) var isDraggingOut = false
+    /// Fired when an outgoing drag session ends, so the controller can re-apply
+    /// the park-on-focus-loss rule it suppressed during the drag.
+    var onDragOutEnded: (@MainActor () -> Void)?
     /// Live filter text from the toolbar search field (empty = no filter).
     private var searchText: String = ""
 
@@ -839,6 +847,13 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
         return (item as? Node)?.category == nil
     }
 
+    /// While our preview panel is up, retarget it at the new selection so
+    /// arrow-key navigation (see `previewPanel(_:handle:)`) updates the preview.
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        guard isQuickLookActive else { return }
+        QLPreviewPanel.shared()?.reloadData()
+    }
+
     func outlineView(_ outlineView: NSOutlineView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
         guard outlineView === content, let descriptor = content.sortDescriptors.first,
               let key = descriptor.key else { return }
@@ -855,6 +870,20 @@ extension FileBrowserView: NSOutlineViewDataSource, NSOutlineViewDelegate {
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
         guard let url = (item as? Node)?.url else { return nil }
         return url as NSURL
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, draggingSession session: NSDraggingSession,
+                     willBeginAt screenPoint: NSPoint, forItems draggedItems: [Any]) {
+        isDraggingOut = true
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, draggingSession session: NSDraggingSession,
+                     endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        isDraggingOut = false
+        // The destination performed a move (or the drop was Trash) — the source
+        // entry is gone, so refresh rather than show a stale row.
+        if operation.contains(.move) || operation.contains(.delete) { reloadListing() }
+        onDragOutEnded?()
     }
 
     /// Drop target: accept file URLs onto a folder row (into that folder) or
@@ -1105,6 +1134,38 @@ extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
         MainActor.assumeIsolated { () -> NSURL? in
             let urls = selectedURLs
             return index < urls.count ? (urls[index] as NSURL) : nil
+        }
+    }
+
+    /// Arrow keys while the preview panel is key: forward them to the list so
+    /// the selection moves and the preview follows — Finder's behavior. Every
+    /// other key stays with the panel (space/esc close, etc.).
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
+        guard let event, event.type == .keyDown else { return false }
+        switch Int(event.keyCode) {
+        case kVK_UpArrow, kVK_DownArrow, kVK_LeftArrow, kVK_RightArrow:
+            // NSEvent isn't Sendable, but the panel calls this on the main
+            // thread — assumeIsolated below would trap otherwise.
+            nonisolated(unsafe) let key = event
+            MainActor.assumeIsolated { content.keyDown(with: key) }
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Screen rect of the previewed file's row, so the panel zooms from/to it.
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: QLPreviewItem!) -> NSRect {
+        // Pull the URL out before hopping isolation — URL is Sendable, the item isn't.
+        guard let url = item?.previewItemURL else { return .zero }
+        return MainActor.assumeIsolated {
+            guard let window = content.window else { return .zero }
+            for row in 0..<content.numberOfRows {
+                guard let node = content.item(atRow: row) as? Node, node.url == url else { continue }
+                let inWindow = content.convert(content.rect(ofRow: row), to: nil)
+                return window.convertToScreen(inWindow)
+            }
+            return .zero
         }
     }
 }

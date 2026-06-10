@@ -39,6 +39,12 @@ final class DrawerController {
 
         observeResignKey()
         observeEndResize()
+        // A drag that ended in another app may have activated it while parking
+        // was suppressed (see handleResignKey) — re-apply the rule now.
+        browserView.onDragOutEnded = { [weak self] in
+            guard !NSApp.isActive else { return }
+            self?.handleResignKey()
+        }
         hotkeyManager = HotkeyManager(
             handler: { [weak self] edge in self?.toggle(edge: edge) },
             toggle: { [weak self] in self?.toggleDefault() }
@@ -138,6 +144,10 @@ final class DrawerController {
         // Don't park when focus left only because a QuickLook panel we drove
         // took over — the drawer should still be sitting there behind it.
         if browserView.isQuickLookActive { return }
+        // Don't park mid-drag: dropping a file on another app's window (browser
+        // upload zones especially) can activate it while the drag session is
+        // still live, and parking would yank the drawer out from under the drag.
+        if browserView.isDraggingOut { return }
         // Debounce: schedule the park and replace any still-pending one, so a
         // momentary activation flicker resolves into at most one park.
         parkDebounceTask?.cancel()
