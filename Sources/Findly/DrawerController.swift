@@ -154,8 +154,10 @@ final class DrawerController {
         parkDebounceTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: self?.parkDebounceNanos ?? 150_000_000)
             guard !Task.isCancelled, let self else { return }
-            // Re-check: focus or state may have changed during the wait.
-            guard let edge = self.lastEdge, !self.isParked, !self.isAnimating else { return }
+            // Re-check: focus or state may have changed during the wait —
+            // including a drag that began inside the debounce window.
+            guard let edge = self.lastEdge, !self.isParked, !self.isAnimating,
+                  !self.browserView.isDraggingOut else { return }
             self.parkOffscreen(edge: edge)
         }
     }

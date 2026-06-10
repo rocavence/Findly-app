@@ -12,6 +12,14 @@
 "Snap Right" = "Snap Right";
 "Quit Findly" = "Quit Findly";
 "Launch at Login" = "Launch at Login";
+"Hotkeys…" = "Hotkeys…";
+
+/* --- Hotkey settings window --- */
+"Hotkeys" = "Hotkeys";
+"Record" = "Record";
+"Reset" = "Reset";
+"Press shortcut…" = "Press shortcut…";
+"Shortcuts must include ⌘, ⌃ or ⌥. Press Esc to cancel recording." = "Shortcuts must include ⌘, ⌃ or ⌥. Press Esc to cancel recording.";
 
 /* --- Launch-at-login alert (LaunchAtLogin) --- */
 "Move Findly to the Applications folder first" = "Move Findly to the Applications folder first";

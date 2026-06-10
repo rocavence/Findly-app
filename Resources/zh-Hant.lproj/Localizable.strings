@@ -12,6 +12,14 @@
 "Snap Right" = "靠右";
 "Quit Findly" = "結束 Findly";
 "Launch at Login" = "登入時自動啟動";
+"Hotkeys…" = "快速鍵設定…";
+
+/* --- Hotkey settings window --- */
+"Hotkeys" = "快速鍵設定";
+"Record" = "錄製";
+"Reset" = "重設";
+"Press shortcut…" = "請按下快速鍵…";
+"Shortcuts must include ⌘, ⌃ or ⌥. Press Esc to cancel recording." = "快速鍵必須包含 ⌘、⌃ 或 ⌥。按 Esc 可取消錄製。";
 
 /* --- Launch-at-login alert (LaunchAtLogin) --- */
 "Move Findly to the Applications folder first" = "請先將 Findly 移到「應用程式」檔案夾";

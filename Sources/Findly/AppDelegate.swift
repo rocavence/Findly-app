@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -9,6 +10,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var fdaItem: NSMenuItem?
     /// "Launch at Login" — checkmark mirrors the live SMAppService state.
     private var launchAtLoginItem: NSMenuItem?
+    /// Menu items whose keyEquivalent mirrors a customizable hotkey, so the
+    /// menu always shows whatever the user bound in the Hotkeys window.
+    private var actionMenuItems: [HotkeyAction: NSMenuItem] = [:]
+    /// Hotkey settings window — created once, reused on reopen.
+    private var hotkeyWindow: NSWindow?
+    private var hotkeySettingsModel: HotkeySettingsModel?
+    private var hotkeyWindowCloseToken: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Debug/testing: show the browser in an ordinary window, bypassing the
@@ -21,6 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller = DrawerController()
         setupStatusBar()
+        // Debug/testing: open the hotkey settings window immediately so it can
+        // be screenshotted without driving the status menu.
+        if ProcessInfo.processInfo.environment["FINDLY_DEBUG_HOTKEYS"] != nil {
+            showHotkeySettings()
+        }
         if ProcessInfo.processInfo.environment["FINDLY_DEBUG_AUTOSHOW"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 self?.controller.toggleDefault()
@@ -83,23 +96,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fda.representedObject = fdaSeparator
         fdaItem = fda
 
-        let toggle = NSMenuItem(title: NSLocalizedString("Toggle Drawer", comment: "Status menu item that shows/hides the drawer"), action: #selector(toggleDrawer), keyEquivalent: "`")
-        toggle.keyEquivalentModifierMask = [.command]
+        // Shortcuts come from the (customizable) hotkey bindings — see
+        // applyHotkeyEquivalents() — not hardcoded keyEquivalents.
+        let toggle = NSMenuItem(title: NSLocalizedString("Toggle Drawer", comment: "Status menu item that shows/hides the drawer"), action: #selector(toggleDrawer), keyEquivalent: "")
         toggle.target = self
         menu.addItem(toggle)
+        actionMenuItems[.toggle] = toggle
         menu.addItem(.separator())
         for edge in ScreenEdge.allCases {
             let item = NSMenuItem(
                 title: edge.snapMenuTitle,
                 action: #selector(snap(_:)),
-                keyEquivalent: edge.menuKeyEquivalent
+                keyEquivalent: ""
             )
-            item.keyEquivalentModifierMask = [.control, .option]
             item.target = self
             item.representedObject = edge.rawValue
             menu.addItem(item)
+            actionMenuItems[HotkeyAction.forEdge(edge)] = item
         }
         menu.addItem(.separator())
+        let hotkeys = NSMenuItem(title: NSLocalizedString("Hotkeys…", comment: "Status menu item that opens the hotkey settings window"), action: #selector(showHotkeySettings), keyEquivalent: "")
+        hotkeys.target = self
+        menu.addItem(hotkeys)
         let launch = NSMenuItem(title: NSLocalizedString("Launch at Login", comment: "Status menu item to start Findly automatically at login"), action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launch.target = self
         menu.addItem(launch)
@@ -109,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quit.target = self
         menu.addItem(quit)
         statusItem.menu = menu
+        applyHotkeyEquivalents()
     }
 
     @objc private func snap(_ sender: NSMenuItem) {
@@ -123,6 +142,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleLaunchAtLogin() { LaunchAtLogin.toggle() }
 
+    /// Mirror the (possibly customized) hotkeys onto the menu items, so the
+    /// menu's shortcut column never drifts from what's actually registered.
+    private func applyHotkeyEquivalents() {
+        for (action, item) in actionMenuItems {
+            let hotkey = Defaults.hotkey(for: action)
+            item.keyEquivalent = hotkey.keyEquivalent
+            item.keyEquivalentModifierMask = hotkey.keyEquivalentModifierMask
+        }
+    }
+
+    @objc private func showHotkeySettings() {
+        if hotkeyWindow == nil {
+            let model = HotkeySettingsModel()
+            hotkeySettingsModel = model
+            let hosting = NSHostingController(rootView: HotkeySettingsView(model: model))
+            let window = NSWindow(contentViewController: hosting)
+            window.styleMask = [.titled, .closable]
+            window.title = NSLocalizedString("Hotkeys", comment: "Hotkey settings window title")
+            // We're an accessory app with no Dock presence: keep the panel
+            // floating so it can't get lost behind other apps' windows, and
+            // keep the instance alive for reuse instead of releasing on close.
+            window.level = .floating
+            window.isReleasedWhenClosed = false
+            window.center()
+            // Closing mid-recording must tear down the local keyDown monitor,
+            // otherwise it would keep swallowing keystrokes forever.
+            hotkeyWindowCloseToken = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.hotkeySettingsModel?.cancelRecording() }
+            }
+            hotkeyWindow = window
+        }
+        hotkeyWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     @objc private func quit() { NSApp.terminate(nil) }
 }
 
@@ -135,6 +191,8 @@ extension AppDelegate: NSMenuDelegate {
         fdaItem?.isHidden = granted
         (fdaItem?.representedObject as? NSMenuItem)?.isHidden = granted
         launchAtLoginItem?.state = LaunchAtLogin.isEnabled ? .on : .off
+        // Re-apply hotkeys in case bindings changed in the settings window.
+        applyHotkeyEquivalents()
     }
 }
 
@@ -150,18 +208,5 @@ private extension ScreenEdge {
         case .left:   return NSLocalizedString("Snap Left", comment: "Status menu item: snap drawer to left edge")
         case .right:  return NSLocalizedString("Snap Right", comment: "Status menu item: snap drawer to right edge")
         }
-    }
-
-    /// Single-character keyEquivalent for arrow keys, displayed in the menu
-    /// next to the title.
-    var menuKeyEquivalent: String {
-        let code: Int
-        switch self {
-        case .top:    code = NSUpArrowFunctionKey
-        case .bottom: code = NSDownArrowFunctionKey
-        case .left:   code = NSLeftArrowFunctionKey
-        case .right:  code = NSRightArrowFunctionKey
-        }
-        return String(Character(UnicodeScalar(code)!))
     }
 }

@@ -10,20 +10,30 @@ final class HotkeyManager {
     private var hotkeyRefs: [EventHotKeyRef] = []
     private var eventHandlerRef: EventHandlerRef?
     private let signature: OSType = 0x46_4e_44_4c // 'FNDL'
-    private let toggleHotkeyID: UInt32 = 5
+    private let toggleHotkeyID: UInt32 = HotkeyAction.toggle.carbonID
+    private var notificationTokens: [NSObjectProtocol] = []
 
     init(handler: @escaping Handler, toggle: (@MainActor () -> Void)? = nil) {
         self.handler = handler
         self.toggleHandler = toggle
         installEventHandler()
         registerHotkeys()
+        observeHotkeyChanges()
+    }
+
+    /// Drop and re-register every hotkey from Defaults — called after the user
+    /// edits a binding in the settings window.
+    func reload() {
+        unregisterAll()
+        registerHotkeys()
     }
 
     func shutdown() {
-        for ref in hotkeyRefs { UnregisterEventHotKey(ref) }
-        hotkeyRefs.removeAll()
+        unregisterAll()
         if let h = eventHandlerRef { RemoveEventHandler(h) }
         eventHandlerRef = nil
+        for t in notificationTokens { NotificationCenter.default.removeObserver(t) }
+        notificationTokens.removeAll()
     }
 
     fileprivate func dispatch(id: UInt32) {
@@ -46,40 +56,51 @@ final class HotkeyManager {
         InstallEventHandler(GetApplicationEventTarget(), hotkeyCallback, 1, &spec, userData, &eventHandlerRef)
     }
 
+    /// Register every action's binding from Defaults (built-in defaults when
+    /// the user hasn't customized: ⌃⌥arrows for the edges, ⌘` for toggle).
     private func registerHotkeys() {
-        // ⌃⌥ + ↑/↓/←/→ → top/bottom/left/right
-        let mods = UInt32(controlKey | optionKey)
-        let keys: [(UInt32, UInt32)] = [
-            (UInt32(kVK_UpArrow),    1),
-            (UInt32(kVK_DownArrow),  2),
-            (UInt32(kVK_LeftArrow),  3),
-            (UInt32(kVK_RightArrow), 4),
-        ]
-        for (keyCode, id) in keys {
+        for action in HotkeyAction.allCases {
+            if action == .toggle && toggleHandler == nil { continue }
+            let hotkey = Defaults.hotkey(for: action)
             var ref: EventHotKeyRef?
-            let hotKeyID = EventHotKeyID(signature: signature, id: id)
-            let status = RegisterEventHotKey(keyCode, mods, hotKeyID, GetApplicationEventTarget(), 0, &ref)
-            if status == noErr, let ref {
-                hotkeyRefs.append(ref)
-            } else {
-                NSLog("Findly: failed to register hotkey id=\(id), status=\(status)")
-            }
-        }
-
-        // ⌘` → toggle the drawer on its last-used edge.
-        if toggleHandler != nil {
-            var ref: EventHotKeyRef?
-            let hotKeyID = EventHotKeyID(signature: signature, id: toggleHotkeyID)
+            let hotKeyID = EventHotKeyID(signature: signature, id: action.carbonID)
             let status = RegisterEventHotKey(
-                UInt32(kVK_ANSI_Grave), UInt32(cmdKey), hotKeyID,
+                hotkey.keyCode, hotkey.carbonModifiers, hotKeyID,
                 GetApplicationEventTarget(), 0, &ref
             )
             if status == noErr, let ref {
                 hotkeyRefs.append(ref)
             } else {
-                NSLog("Findly: failed to register ⌘` toggle hotkey, status=\(status)")
+                NSLog("Findly: failed to register hotkey for \(action.rawValue), status=\(status)")
             }
         }
+    }
+
+    private func unregisterAll() {
+        for ref in hotkeyRefs { UnregisterEventHotKey(ref) }
+        hotkeyRefs.removeAll()
+    }
+
+    /// React to the hotkey settings window. While it records a new shortcut we
+    /// unregister everything, because Carbon would consume a currently-bound
+    /// combo before the recorder's keyDown monitor could capture it.
+    private func observeHotkeyChanges() {
+        let center = NotificationCenter.default
+        notificationTokens.append(center.addObserver(
+            forName: .findlyHotkeysChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reload() }
+        })
+        notificationTokens.append(center.addObserver(
+            forName: .findlyHotkeyRecordingBegan, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.unregisterAll() }
+        })
+        notificationTokens.append(center.addObserver(
+            forName: .findlyHotkeyRecordingEnded, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reload() }
+        })
     }
 }
 

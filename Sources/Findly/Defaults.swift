@@ -57,6 +57,35 @@ enum Defaults {
         return v > 0 ? CGFloat(v) : nil
     }
 
+    // MARK: - Hotkeys
+
+    /// Custom binding for an action, or its built-in default when unset.
+    /// Stored as a small dict so the two halves can't drift apart.
+    static func hotkey(for action: HotkeyAction) -> Hotkey {
+        guard let dict = UserDefaults.standard.dictionary(forKey: hotkeyKey(action)),
+              let keyCode = dict["keyCode"] as? Int,
+              let modifiers = dict["modifiers"] as? Int else {
+            return action.defaultHotkey
+        }
+        return Hotkey(keyCode: UInt32(keyCode), carbonModifiers: UInt32(modifiers))
+    }
+
+    /// `nil` clears the customization, falling back to the built-in default.
+    static func setHotkey(_ hotkey: Hotkey?, for action: HotkeyAction) {
+        if let hotkey {
+            UserDefaults.standard.set(
+                ["keyCode": Int(hotkey.keyCode), "modifiers": Int(hotkey.carbonModifiers)],
+                forKey: hotkeyKey(action)
+            )
+        } else {
+            UserDefaults.standard.removeObject(forKey: hotkeyKey(action))
+        }
+    }
+
+    private static func hotkeyKey(_ action: HotkeyAction) -> String {
+        "Findly.hotkey.\(action.rawValue)"
+    }
+
     /// POSIX path the managed window was last viewing. Used to restore the
     /// folder when we close the window on a Space change and recreate it
     /// on the user's new Space.
