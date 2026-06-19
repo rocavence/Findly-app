@@ -12,6 +12,7 @@
 "Snap Right" = "靠右";
 "Quit Findly" = "結束 Findly";
 "Launch at Login" = "登入時自動啟動";
+"Back/Forward with Mouse Buttons" = "用滑鼠側鍵切換上一頁/下一頁";
 "Hotkeys…" = "快速鍵設定…";
 
 /* --- Hotkey settings window --- */

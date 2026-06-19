@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var fdaItem: NSMenuItem?
     /// "Launch at Login" — checkmark mirrors the live SMAppService state.
     private var launchAtLoginItem: NSMenuItem?
+    /// "Back/Forward with Mouse Buttons" — checkmark mirrors the toggle.
+    private var mouseNavItem: NSMenuItem?
     /// Menu items whose keyEquivalent mirrors a customizable hotkey, so the
     /// menu always shows whatever the user bound in the Hotkeys window.
     private var actionMenuItems: [HotkeyAction: NSMenuItem] = [:]
@@ -118,6 +120,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hotkeys = NSMenuItem(title: NSLocalizedString("Hotkeys…", comment: "Status menu item that opens the hotkey settings window"), action: #selector(showHotkeySettings), keyEquivalent: "")
         hotkeys.target = self
         menu.addItem(hotkeys)
+        let mouseNav = NSMenuItem(title: NSLocalizedString("Back/Forward with Mouse Buttons", comment: "Status menu toggle: use the mouse side buttons for Back/Forward navigation"), action: #selector(toggleMouseNav), keyEquivalent: "")
+        mouseNav.target = self
+        menu.addItem(mouseNav)
+        mouseNavItem = mouseNav
         let launch = NSMenuItem(title: NSLocalizedString("Launch at Login", comment: "Status menu item to start Findly automatically at login"), action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launch.target = self
         menu.addItem(launch)
@@ -141,6 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openFDASettings() { FullDiskAccess.openSettings() }
 
     @objc private func toggleLaunchAtLogin() { LaunchAtLogin.toggle() }
+
+    @objc private func toggleMouseNav() { Defaults.mouseNavEnabled.toggle() }
 
     /// Mirror the (possibly customized) hotkeys onto the menu items, so the
     /// menu's shortcut column never drifts from what's actually registered.
@@ -191,6 +199,7 @@ extension AppDelegate: NSMenuDelegate {
         fdaItem?.isHidden = granted
         (fdaItem?.representedObject as? NSMenuItem)?.isHidden = granted
         launchAtLoginItem?.state = LaunchAtLogin.isEnabled ? .on : .off
+        mouseNavItem?.state = Defaults.mouseNavEnabled ? .on : .off
         // Re-apply hotkeys in case bindings changed in the settings window.
         applyHotkeyEquivalents()
     }

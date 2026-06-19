@@ -446,6 +446,19 @@ final class FileBrowserView: NSView {
         forwardButton.isEnabled = !forwardStack.isEmpty
     }
 
+    /// Mouse side buttons drive Back/Forward, browser-style: button 4 (the back
+    /// thumb button) is `buttonNumber` 3, button 5 (forward) is 4. Unhandled
+    /// "other" buttons from the list bubble up to here via the responder chain.
+    /// Gated by the user toggle.
+    override func otherMouseUp(with event: NSEvent) {
+        guard Defaults.mouseNavEnabled else { return super.otherMouseUp(with: event) }
+        switch event.buttonNumber {
+        case 3: goBack()
+        case 4: goForward()
+        default: super.otherMouseUp(with: event)
+        }
+    }
+
     // MARK: - Context menu
 
     /// Files the right-click acts on: the clicked row, expanded to the whole

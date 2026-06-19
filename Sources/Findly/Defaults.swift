@@ -43,6 +43,13 @@ enum Defaults {
         set { UserDefaults.standard.set(newValue, forKey: "Findly.groupByKind") }
     }
 
+    /// Whether the mouse's back/forward side buttons drive Back/Forward
+    /// navigation (browser-style). On by default.
+    static var mouseNavEnabled: Bool {
+        get { (UserDefaults.standard.object(forKey: "Findly.mouseNavEnabled") as? Bool) ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "Findly.mouseNavEnabled") }
+    }
+
     /// User's custom order for the Favorites sidebar rows, stored as their
     /// stable identifiers (POSIX paths). Empty until the user drags to reorder;
     /// favorites not present here fall back to their natural discovery order.
