@@ -1,0 +1,44 @@
+# Findly
+
+> Findly is a free, open-source macOS menu bar utility. Press ⌘` to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It is its own window — not the real Finder — so it appears on every Space with a single line of collectionBehavior, with no Apple Events, Accessibility, or private SPI.
+
+- Platform: macOS 14 (Sonoma) or later
+- Price: Free, open source (MIT license)
+- Author: rocavence (https://github.com/rocavence)
+- Download: https://github.com/rocavence/Findly-app/releases/latest
+- Source code: https://github.com/rocavence/Findly-app
+- Website: https://findly.rocavence.com
+
+## What it does
+
+Findly is a quick file drawer you can summon over anything and dismiss just as fast:
+
+- Press ⌘` to slide the drawer in/out; use ⌃⌥ + arrow keys to summon it to the top, bottom, left, or right edge.
+- It appears on whichever screen the mouse is on.
+- Switch to another app and the drawer auto-parks off-screen; press the hotkey again to slide it back.
+- Drag the drawer's inner edge to resize width/height — it remembers for next time.
+- Because it is its own window, one line of `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` makes it appear on every Space and over full-screen apps — no Finder, Apple Events, or private SPI.
+
+## Inside the drawer
+
+A macOS 26 "Liquid Glass" look: a translucent window with the sidebar and file list as two rounded inset cards, a back/forward + search toolbar, drag-and-drop, and Traditional Chinese localization.
+
+- Sidebar: a native SwiftUI sidebar (List with .listStyle(.sidebar) hosted via NSHostingView) that mirrors Finder's favorites (reads Finder's shared file list; needs Full Disk Access) and supports drag-to-reorder.
+- File list: an NSOutlineView-backed Finder list view with multiple columns (Name / Size / Kind / Date Modified), click-to-sort headers (natural numeric sort), Group by Kind, double-click to enter folders, multi-select, right-click menu (Open / Quick Look / Reveal in Finder / Rename / Move to Trash), spacebar Quick Look, and Enter to open.
+
+## Why its own window
+
+The original direction was to avoid rebuilding a file browser UI by driving a real Finder window via AppleScript + Accessibility. That worked but cost a lot: per-Space window juggling, cross-Space moves blocked under SIP, private SkyLight/CGS SPI, telling "our" windows from the user's, timestamp-guessing for auto-park. Switching to its own window removed all of it — at the cost of building the browser UI with NSOutlineView (the component behind Finder's list view), which gets very close while keeping the architecture far cleaner.
+
+## Install notes
+
+- Self-signed (not Apple-notarized). On first launch, open via right-click → Open, or run `xattr -dr com.apple.quarantine /Applications/Findly.app`.
+- Full Disk Access: the drawer browses the whole file system and the sidebar mirrors Finder favorites. Grant it in System Settings → Privacy & Security → Full Disk Access. Without it, TCC-protected folders (Desktop, Documents, Downloads, CloudStorage/Dropbox) list as empty and the sidebar falls back to a built-in list.
+- Tested on macOS 14+, primarily macOS 26 (Tahoe).
+- Tech stack: Swift 6, AppKit, NSPanel, SwiftUI sidebar, NSOutlineView, UniformTypeIdentifiers, Quick Look, Carbon RegisterEventHotKey.
+
+## Links
+
+- Download (latest release): https://github.com/rocavence/Findly-app/releases/latest
+- Source code & docs: https://github.com/rocavence/Findly-app
+- License: MIT

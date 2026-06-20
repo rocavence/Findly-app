@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜</title>
+<meta name="description" content="Findly 是一個常駐選單列的 macOS 小工具：用全域快捷鍵 ⌘` 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜，切到別的 app 就自動滑回邊外。支援 macOS 14+、多螢幕、全域快捷鍵、開源免費。">
+<meta name="keywords" content="Findly, macOS, 檔案抽屜, file drawer, Finder, 選單列工具, menu bar app, slide-out drawer, NSOutlineView, 全域快捷鍵, global hotkey, macOS file browser, quick file access">
+<meta name="author" content="rocavence">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://findly.rocavence.com/">
+<link rel="alternate" hreflang="zh-Hant" href="https://findly.rocavence.com/">
+<link rel="alternate" hreflang="en" href="https://findly.rocavence.com/">
+<link rel="alternate" hreflang="x-default" href="https://findly.rocavence.com/">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Findly">
+<meta property="og:url" content="https://findly.rocavence.com/">
+<meta property="og:title" content="Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜">
+<meta property="og:description" content="⌘` 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜，切到別的 app 就自動滑回邊外。免費、開源、常駐選單列。">
+<meta property="og:image" content="https://findly.rocavence.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:locale:alternate" content="en_US">
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜">
+<meta name="twitter:description" content="⌘` 從任一螢幕邊緣滑出 Finder 風格的檔案抽屜，切到別的 app 自動滑回。免費開源的選單列小工具。">
+<meta name="twitter:image" content="https://findly.rocavence.com/og.png">
+<!-- Structured data: SoftwareApplication -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Findly",
+  "applicationCategory": "UtilitiesApplication",
+  "applicationSubCategory": "Menu Bar Utility",
+  "operatingSystem": "macOS 14.0 or later",
+  "softwareVersion": "0.5.0",
+  "description": "Findly is a free, open-source macOS menu bar utility. Press ⌘` to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It's its own window — no Apple Events, Accessibility, or private SPI — so it appears on every Space with a single line of collectionBehavior.",
+  "url": "https://findly.rocavence.com/",
+  "downloadUrl": "https://github.com/rocavence/Findly-app/releases/latest",
+  "softwareHelp": "https://github.com/rocavence/Findly-app",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "rocavence", "url": "https://github.com/rocavence" },
+  "featureList": [
+    "Slide a file drawer in from any of the four screen edges",
+    "Summon with global hotkeys (⌘` toggle, ⌃⌥ + arrows for a specific edge)",
+    "Auto-parks off-screen when you switch to another app",
+    "Finder-style list view via NSOutlineView with sortable multi-column headers and Group by Kind",
+    "Native SwiftUI sidebar that mirrors Finder favorites",
+    "Appears on every Space and over full-screen apps",
+    "Remembers the drawer size you set"
+  ]
+}
+</script>
+<!-- Structured data: FAQ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What does Findly do?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Findly is a macOS menu bar utility that slides a Finder-style file drawer in from any screen edge when you press a global hotkey (⌘`). It's a quick file browser you can summon over anything; switch to another app and it automatically slides off-screen." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Findly the real Finder?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Findly is its own window with a file browser built on NSOutlineView (the same component behind Finder's list view), made to look and feel close to Finder. Using its own window means no Apple Events, no Accessibility, and no private SPI, and it can appear on every Space with a single line of collectionBehavior." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I summon the drawer?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Press ⌘` to toggle it, or use ⌃⌥ with an arrow key to summon it to the top, bottom, left, or right edge. It appears on whichever screen the mouse is on. The menu bar icon also has Toggle and Snap commands." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Findly cost anything?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Findly is completely free and open source under the MIT license. The source code is on GitHub at github.com/rocavence/Findly-app." }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does Findly ask for Full Disk Access?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The drawer browses your whole file system and its sidebar mirrors Finder's favorites, so it needs Full Disk Access. Without it, TCC-protected folders (Desktop, Documents, Downloads, CloudStorage/Dropbox) appear empty and the sidebar falls back to a built-in list. Grant it in System Settings → Privacy & Security → Full Disk Access. Requires macOS 14+." }
+    }
+  ]
+}
+</script>
+<style>
+  :root{
+    --blue:#2f7bff;
+    --blue-2:#1f5fe0;
+    --ink:#13182a;
+    --muted:#646b80;
+    --line:#e9edf6;
+    --bg:#ffffff;
+    --bg-soft:#f5f8fe;
+    --card:#ffffff;
+    --grad:linear-gradient(140deg,#4f9bff 0%,#1f5fe0 100%);
+    --radius:20px;
+    --shadow:0 24px 60px -28px rgba(31,95,224,.4);
+    --maxw:1080px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.65;-webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .btn{display:inline-flex;align-items:center;gap:9px;border-radius:999px;padding:13px 24px;font-weight:600;font-size:15px;transition:transform .15s ease, box-shadow .2s ease, background .2s ease;cursor:pointer;border:0}
+  .btn-primary{background:var(--grad);color:#fff;box-shadow:0 10px 30px -10px rgba(31,95,224,.7)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 38px -10px rgba(31,95,224,.75)}
+  .btn-ghost{background:#eaf1ff;color:var(--blue-2)}
+  .btn-ghost:hover{background:#dde9ff}
+
+  nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.82);backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:18px}
+  .brand img{width:34px;height:34px;border-radius:9px}
+  .nav-right{display:flex;align-items:center;gap:18px}
+  .nav-link{color:var(--muted);font-size:14px;font-weight:500}
+  .nav-link:hover{color:var(--ink)}
+  .lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;font-size:13px}
+  .lang button{border:0;background:transparent;padding:6px 12px;cursor:pointer;color:var(--muted);font-weight:600;font-family:inherit}
+  .lang button.on{background:var(--blue);color:#fff}
+
+  .hero{padding:84px 0 40px;text-align:center;position:relative;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(620px 360px at 50% -8%,rgba(47,123,255,.16),transparent 70%);pointer-events:none}
+  .hero .appicon{width:104px;height:104px;border-radius:24px;box-shadow:var(--shadow);margin-bottom:26px}
+  h1{font-size:clamp(34px,5.4vw,58px);line-height:1.08;letter-spacing:-.02em;font-weight:800;max-width:780px;margin:0 auto}
+  h1 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{margin:22px auto 0;max-width:580px;color:var(--muted);font-size:clamp(16px,2vw,19px)}
+  kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:#eef2fb;border:1px solid #dde4f1;border-bottom-width:2px;border-radius:6px;padding:1px 7px;color:var(--ink)}
+  .cta{margin-top:34px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .meta{margin-top:18px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+
+  /* DEMO: slide-out drawer */
+  .demo-stage{margin:54px auto 0;max-width:820px}
+  .screen{position:relative;aspect-ratio:16/10;border-radius:18px;background:linear-gradient(160deg,#20283c,#11151f);border:1px solid #2a3450;box-shadow:var(--shadow);overflow:hidden}
+  .menubar{position:absolute;top:0;left:0;right:0;height:26px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;font-size:12px;color:rgba(255,255,255,.65);z-index:3}
+  .desk-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.28);font-size:14px;letter-spacing:.04em;text-align:center;padding:0 20px}
+  .drawer{position:absolute;top:26px;bottom:0;right:0;width:60%;max-width:430px;background:rgba(244,247,253,.92);backdrop-filter:blur(8px);border-left:1px solid rgba(0,0,0,.08);transform:translateX(103%);transition:transform .5s cubic-bezier(.5,.1,.2,1);display:flex;flex-direction:column;z-index:2;box-shadow:-30px 0 60px -30px rgba(0,0,0,.5)}
+  .screen.on .drawer{transform:translateX(0)}
+  .dtop{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid rgba(0,0,0,.06)}
+  .dtop .nav-dots{display:flex;gap:8px;color:#9aa3b5;font-size:13px}
+  .dtop .search{flex:1;background:#fff;border:1px solid #e2e7f0;border-radius:7px;font-size:11px;color:#9aa3b5;padding:4px 9px}
+  .dbody{flex:1;display:flex;min-height:0}
+  .side{width:34%;border-right:1px solid rgba(0,0,0,.06);padding:8px 6px;display:flex;flex-direction:column;gap:3px}
+  .side .row{display:flex;align-items:center;gap:6px;font-size:10.5px;color:#4a5267;padding:4px 7px;border-radius:6px}
+  .side .row.sel{background:rgba(47,123,255,.14);color:var(--blue-2);font-weight:600}
+  .side .row i{font-style:normal}
+  .list{flex:1;padding:6px 4px;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+  .frow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;font-size:10.5px;color:#3a4256;padding:4px 9px;border-radius:5px}
+  .frow:nth-child(odd){background:rgba(0,0,0,.025)}
+  .frow .nm{display:flex;align-items:center;gap:7px;overflow:hidden;white-space:nowrap}
+  .frow .nm i{font-style:normal}
+  .frow .sz{color:#99a1b3;font-variant-numeric:tabular-nums}
+  .frow.sel{background:rgba(47,123,255,.16);color:var(--blue-2)}
+  .demo-ctrl{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:22px;flex-wrap:wrap}
+  .toggle{display:inline-flex;align-items:center;gap:10px;font-weight:600;cursor:pointer;user-select:none}
+  .switch{width:50px;height:28px;border-radius:999px;background:#d4ddee;position:relative;transition:.25s}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.25s}
+  .toggle.on .switch{background:var(--blue)}
+  .toggle.on .switch::after{transform:translateX(22px)}
+  .demo-hint{font-size:13px;color:var(--muted)}
+
+  section.block{padding:88px 0}
+  .block.soft{background:var(--bg-soft)}
+  .eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:14px}
+  h2{font-size:clamp(26px,3.6vw,38px);letter-spacing:-.02em;font-weight:800;line-height:1.15}
+  .lead{color:var(--muted);font-size:17px;margin-top:14px;max-width:580px}
+  .center{text-align:center}.center .lead{margin-left:auto;margin-right:auto}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:50px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px 26px}
+  .step .num{width:34px;height:34px;border-radius:10px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-bottom:18px}
+  .step h3{font-size:18px;margin-bottom:8px}
+  .step p{color:var(--muted);font-size:14.5px}
+  .step code{background:#eef2fb;color:var(--blue-2);padding:1px 6px;border-radius:6px;font-size:12.5px}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:50px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;transition:.2s}
+  .card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:#d8e3f7}
+  .card .emoji{font-size:26px;display:block;margin-bottom:14px}
+  .card h3{font-size:17px;margin-bottom:7px}
+  .card p{color:var(--muted);font-size:14.5px}
+
+  .note{max-width:660px;margin:0 auto;text-align:center}
+  .note p{color:#3b4256;font-size:18px;margin-top:16px}
+  .author{display:inline-flex;align-items:center;gap:12px;margin-top:28px;padding:8px 16px 8px 8px;border:1px solid var(--line);border-radius:999px;transition:.2s}
+  .author:hover{border-color:#d8e3f7;box-shadow:var(--shadow);transform:translateY(-2px)}
+  .author img{width:42px;height:42px;border-radius:50%;background:var(--bg-soft)}
+  .author .who{display:flex;flex-direction:column;align-items:flex-start;line-height:1.3}
+  .author .who b{font-size:15px;color:var(--ink)}
+  .author .who small{font-size:12.5px;color:var(--muted)}
+
+  .install-box{max-width:680px;margin:36px auto 0;background:#141a2b;border-radius:var(--radius);padding:6px;box-shadow:var(--shadow)}
+  .install-box .bar{display:flex;gap:7px;padding:13px 16px}
+  .install-box .bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .install-box .bar i:nth-child(1){background:#ff5f57}.install-box .bar i:nth-child(2){background:#febc2e}.install-box .bar i:nth-child(3){background:#28c840}
+  .install-box pre{padding:6px 22px 22px;color:#e6edfb;font-size:13.5px;line-height:1.9;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .install-box .c{color:#8b94b3}
+  .fda{max-width:680px;margin:20px auto 0;font-size:14px;color:var(--muted);background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;padding:16px 20px;text-align:left}
+  .fda b{color:var(--ink)}
+
+  footer{border-top:1px solid var(--line);padding:38px 0;color:var(--muted);font-size:14px}
+  footer .wrap{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+  footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
+  .foot-links{display:flex;gap:20px}
+
+  @media(max-width:760px){
+    .steps,.grid{grid-template-columns:1fr}
+    section.block{padding:60px 0}
+    .hero{padding:56px 0 20px}
+    .nav-link.hide-sm{display:none}
+    .drawer{width:78%}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="icon.png" alt="Findly"><span>Findly</span></a>
+    <div class="nav-right">
+      <a class="nav-link hide-sm" href="#how" data-i="nav.how">運作原理</a>
+      <a class="nav-link hide-sm" href="#features" data-i="nav.features">功能</a>
+      <a class="nav-link" href="https://github.com/rocavence/Findly-app" target="_blank" rel="noopener">GitHub</a>
+      <div class="lang">
+        <button data-lang="zh" class="on">中</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <img class="appicon" src="icon.png" alt="Findly app icon">
+    <h1 data-i="hero.h1">你的檔案抽屜，<br><span class="hl">從螢幕邊緣一鍵滑出</span></h1>
+    <p class="sub" data-i="hero.sub">Findly 是常駐選單列的 macOS 小工具：按 <kbd>⌘`</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener"><span>⬇︎</span><span data-i="hero.download">下載 Findly</span></a>
+      <a class="btn btn-ghost" href="https://github.com/rocavence/Findly-app" target="_blank" rel="noopener" data-i="hero.source">原始碼 · MIT</a>
+    </div>
+    <p class="meta"><b>macOS 14+</b> · <span data-i="hero.meta">自簽免費 App · v0.5.0</span></p>
+
+    <!-- INTERACTIVE DEMO -->
+    <div class="demo-stage">
+      <div class="screen" id="screen">
+        <div class="menubar"><span>🔍 Findly</span><span class="clock">22:41</span></div>
+        <div class="desk-hint" data-i="demo.desk">你正在做別的事的桌面…</div>
+        <div class="drawer">
+          <div class="dtop"><span class="nav-dots">‹ ›</span><span class="search" data-i="demo.search">搜尋</span></div>
+          <div class="dbody">
+            <div class="side">
+              <div class="row sel"><i>⭐</i><span data-i="demo.s1">最愛</span></div>
+              <div class="row"><i>🗂️</i><span data-i="demo.s2">桌面</span></div>
+              <div class="row"><i>📄</i><span data-i="demo.s3">文件</span></div>
+              <div class="row"><i>⬇️</i><span data-i="demo.s4">下載</span></div>
+              <div class="row"><i>☁️</i><span>Dropbox</span></div>
+            </div>
+            <div class="list">
+              <div class="frow"><span class="nm"><i>📁</i>Projects</span><span class="sz">--</span></div>
+              <div class="frow sel"><span class="nm"><i>📁</i>Findly-app</span><span class="sz">--</span></div>
+              <div class="frow"><span class="nm"><i>🖼️</i>icon-1024.png</span><span class="sz">407 KB</span></div>
+              <div class="frow"><span class="nm"><i>📄</i>README.md</span><span class="sz">7 KB</span></div>
+              <div class="frow"><span class="nm"><i>📄</i>Package.swift</span><span class="sz">400 B</span></div>
+              <div class="frow"><span class="nm"><i>🗜️</i>Findly-0.5.0.zip</span><span class="sz">822 KB</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-ctrl">
+        <label class="toggle" id="toggle"><span class="switch"></span><span data-i="demo.toggle">召喚抽屜 ⌘`</span></label>
+        <span class="demo-hint" data-i="demo.hint">← 撥一下，看抽屜從右邊滑進來</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="block soft" id="how">
+  <div class="wrap center">
+    <span class="eyebrow" data-i="how.eyebrow">運作原理</span>
+    <h2 data-i="how.h2">乾淨的架構，剛好的距離</h2>
+    <p class="lead" data-i="how.lead">最初想用 Accessibility 去驅動「真的 Finder」當抽屜，複雜度爆炸。最後換成自己的視窗——簡單非常多。</p>
+    <div class="steps" style="text-align:left">
+      <div class="step"><div class="num">1</div><h3 data-i="how.s1h">自己的視窗，不碰真 Finder</h3><p data-i="how.s1p">用自己的 <code>NSPanel</code>，一行 <code>collectionBehavior</code> 就出現在每個 Space——沒有 Apple Events、Accessibility 或私有 SPI。</p></div>
+      <div class="step"><div class="num">2</div><h3 data-i="how.s2h">從任一邊召喚</h3><p data-i="how.s2p">選單列或全域快捷鍵 <code>⌘`</code> ／ <code>⌃⌥</code>+方向鍵；滑鼠在哪個螢幕，就召喚到那個螢幕。</p></div>
+      <div class="step"><div class="num">3</div><h3 data-i="how.s3h">自動滑回邊外</h3><p data-i="how.s3p">點到別的 app 就自動 park 到螢幕外，再按一次滑回來。拖內側邊界調寬高，下次召喚記得。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="features">
+  <div class="wrap center">
+    <span class="eyebrow" data-i="feat.eyebrow">功能</span>
+    <h2 data-i="feat.h2">像 Finder，但隨叫隨到</h2>
+    <p class="lead" data-i="feat.lead">用 NSOutlineView 做到很接近 Finder 列表檢視，再加上抽屜該有的順手。</p>
+    <div class="grid" style="text-align:left">
+      <div class="card"><span class="emoji">🪟</span><h3 data-i="feat.c1h">Liquid Glass 外觀</h3><p data-i="feat.c1p">macOS 26 半透明視窗，側欄與檔案列表做成兩張圓角內嵌卡片。</p></div>
+      <div class="card"><span class="emoji">⭐</span><h3 data-i="feat.c2h">鏡像 Finder 最愛</h3><p data-i="feat.c2p">原生 SwiftUI 側欄讀取 Finder 的共享清單，還能拖曳重新排序。</p></div>
+      <div class="card"><span class="emoji">🗂️</span><h3 data-i="feat.c3h">真・Finder 列表</h3><p data-i="feat.c3p">NSOutlineView 撐起多欄位、點標題排序、Group by Kind、空白鍵 Quick Look。</p></div>
+      <div class="card"><span class="emoji">⌨️</span><h3 data-i="feat.c4h">全域快捷鍵</h3><p data-i="feat.c4p">Carbon 註冊、不用多要權限；⌘` 召喚、⌃⌥+方向鍵指定邊。</p></div>
+      <div class="card"><span class="emoji">🖥️</span><h3 data-i="feat.c5h">出現在每個 Space</h3><p data-i="feat.c5p">一行 collectionBehavior，跨所有 Space 與全螢幕 app 都召喚得出來。</p></div>
+      <div class="card"><span class="emoji">📐</span><h3 data-i="feat.c6h">記住你的尺寸</h3><p data-i="feat.c6p">拖抽屜內側邊界調整寬高，下次召喚就是你上次的大小。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block soft">
+  <div class="wrap center">
+    <span class="eyebrow" data-i="inst.eyebrow">安裝</span>
+    <h2 data-i="inst.h2">拖進「應用程式」就好</h2>
+    <p class="lead" data-i="inst.lead">下載解壓、拖進去。自簽 App 第一次打開用右鍵 → 打開，或跑下面這行清掉 quarantine。</p>
+    <div class="install-box">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <pre><span class="c"># <span data-i="inst.cmt">清除 quarantine 後直接打開</span></span>
+xattr -dr com.apple.quarantine /Applications/Findly.app
+open /Applications/Findly.app</pre>
+    </div>
+    <p class="fda"><b data-i="inst.fdah">完整磁碟取用權限：</b><span data-i="inst.fdap">抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。</span></p>
+    <div class="cta" style="margin-top:30px">
+      <a class="btn btn-primary" href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener"><span>⬇︎</span><span data-i="inst.btn">下載最新版</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="note">
+      <span class="eyebrow" data-i="note.eyebrow">寫在最後</span>
+      <p data-i="note.p1">我想要一個「隨手叫出來、用完就消失」的檔案抽屜。試過去借真 Finder 的視窗，發現代價太大，最後決定自己刻一個——換來乾淨非常多的架構。</p>
+      <p data-i="note.p2">Findly 很小、開源、免費。整個專案是用 Claude Code 邊聊邊長出來的。如果它讓你拿檔案更順手，那就值得了。</p>
+      <a class="author" href="https://github.com/rocavence" target="_blank" rel="noopener">
+        <img src="avatar.png" alt="rocavence" loading="lazy">
+        <span class="who"><b>@rocavence</b><small data-i="note.role">作者 · GitHub</small></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand" style="font-size:15px"><img src="icon.png" alt="" style="width:24px;height:24px;border-radius:7px"><span>Findly</span></div>
+    <div class="foot-links">
+      <a href="https://github.com/rocavence/Findly-app" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener" data-i="foot.dl">下載</a>
+      <a href="https://github.com/rocavence/Findly-app/blob/main/README.md" target="_blank" rel="noopener" data-i="foot.docs">說明</a>
+    </div>
+    <span>© 2026 · MIT · <span data-i="foot.by">作者</span> <a href="https://github.com/rocavence" target="_blank" rel="noopener">@rocavence</a></span>
+  </div>
+</footer>
+
+<script>
+const I18N = {
+  zh:{
+    "nav.how":"運作原理","nav.features":"功能",
+    "hero.h1":'你的檔案抽屜，<br><span class="hl">從螢幕邊緣一鍵滑出</span>',
+    "hero.sub":'Findly 是常駐選單列的 macOS 小工具：按 <kbd>⌘`</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。',
+    "hero.download":"下載 Findly","hero.source":"原始碼 · MIT","hero.meta":"自簽免費 App · v0.5.0",
+    "demo.desk":"你正在做別的事的桌面…","demo.search":"搜尋",
+    "demo.s1":"最愛","demo.s2":"桌面","demo.s3":"文件","demo.s4":"下載",
+    "demo.toggle":"召喚抽屜 ⌘`","demo.hint":"← 撥一下，看抽屜從右邊滑進來",
+    "how.eyebrow":"運作原理","how.h2":"乾淨的架構，剛好的距離",
+    "how.lead":"最初想用 Accessibility 去驅動「真的 Finder」當抽屜，複雜度爆炸。最後換成自己的視窗——簡單非常多。",
+    "how.s1h":"自己的視窗，不碰真 Finder","how.s1p":'用自己的 <code>NSPanel</code>，一行 <code>collectionBehavior</code> 就出現在每個 Space——沒有 Apple Events、Accessibility 或私有 SPI。',
+    "how.s2h":"從任一邊召喚","how.s2p":'選單列或全域快捷鍵 <code>⌘`</code> ／ <code>⌃⌥</code>+方向鍵；滑鼠在哪個螢幕，就召喚到那個螢幕。',
+    "how.s3h":"自動滑回邊外","how.s3p":"點到別的 app 就自動 park 到螢幕外，再按一次滑回來。拖內側邊界調寬高，下次召喚記得。",
+    "feat.eyebrow":"功能","feat.h2":"像 Finder，但隨叫隨到","feat.lead":"用 NSOutlineView 做到很接近 Finder 列表檢視，再加上抽屜該有的順手。",
+    "feat.c1h":"Liquid Glass 外觀","feat.c1p":"macOS 26 半透明視窗，側欄與檔案列表做成兩張圓角內嵌卡片。",
+    "feat.c2h":"鏡像 Finder 最愛","feat.c2p":"原生 SwiftUI 側欄讀取 Finder 的共享清單，還能拖曳重新排序。",
+    "feat.c3h":"真・Finder 列表","feat.c3p":"NSOutlineView 撐起多欄位、點標題排序、Group by Kind、空白鍵 Quick Look。",
+    "feat.c4h":"全域快捷鍵","feat.c4p":"Carbon 註冊、不用多要權限；⌘` 召喚、⌃⌥+方向鍵指定邊。",
+    "feat.c5h":"出現在每個 Space","feat.c5p":"一行 collectionBehavior，跨所有 Space 與全螢幕 app 都召喚得出來。",
+    "feat.c6h":"記住你的尺寸","feat.c6p":"拖抽屜內側邊界調整寬高，下次召喚就是你上次的大小。",
+    "inst.eyebrow":"安裝","inst.h2":"拖進「應用程式」就好",
+    "inst.lead":"下載解壓、拖進去。自簽 App 第一次打開用右鍵 → 打開，或跑下面這行清掉 quarantine。",
+    "inst.cmt":"清除 quarantine 後直接打開","inst.btn":"下載最新版",
+    "inst.fdah":"完整磁碟取用權限：","inst.fdap":"抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。",
+    "note.eyebrow":"寫在最後",
+    "note.p1":"我想要一個「隨手叫出來、用完就消失」的檔案抽屜。試過去借真 Finder 的視窗，發現代價太大，最後決定自己刻一個——換來乾淨非常多的架構。",
+    "note.p2":"Findly 很小、開源、免費。整個專案是用 Claude Code 邊聊邊長出來的。如果它讓你拿檔案更順手，那就值得了。",
+    "note.role":"作者 · GitHub","foot.dl":"下載","foot.docs":"說明","foot.by":"作者"
+  },
+  en:{
+    "nav.how":"How it works","nav.features":"Features",
+    "hero.h1":'Your file drawer, <br><span class="hl">one keystroke from any edge</span>',
+    "hero.sub":'Findly is a macOS menu bar utility: press <kbd>⌘`</kbd> to slide a Finder-style file drawer in from any screen edge—switch to another app and it parks itself off-screen.',
+    "hero.download":"Download Findly","hero.source":"Source · MIT","hero.meta":"Free self-signed app · v0.5.0",
+    "demo.desk":"your desktop, mid-task…","demo.search":"Search",
+    "demo.s1":"Favorites","demo.s2":"Desktop","demo.s3":"Documents","demo.s4":"Downloads",
+    "demo.toggle":"Summon drawer ⌘`","demo.hint":"← flip it, watch the drawer slide in",
+    "how.eyebrow":"How it works","how.h2":"A clean architecture, kept at arm's length",
+    "how.lead":"The first idea was to drive the real Finder as the drawer via Accessibility—complexity exploded. Switching to its own window made everything far simpler.",
+    "how.s1h":"Its own window, not the real Finder","how.s1p":'Its own <code>NSPanel</code>; one line of <code>collectionBehavior</code> puts it on every Space—no Apple Events, Accessibility, or private SPI.',
+    "how.s2h":"Summon from any edge","how.s2p":'Menu bar or global hotkeys <code>⌘`</code> / <code>⌃⌥</code> + arrows; it appears on whichever screen the mouse is on.',
+    "how.s3h":"Parks itself off-screen","how.s3p":"Switch to another app and it auto-parks off-screen; press the hotkey again to slide it back. Drag the inner edge to resize—it remembers.",
+    "feat.eyebrow":"Features","feat.h2":"Like Finder, but on call","feat.lead":"NSOutlineView gets it close to Finder's list view, plus the conveniences a drawer should have.",
+    "feat.c1h":"Liquid Glass look","feat.c1p":"A macOS 26 translucent window; sidebar and file list as two rounded inset cards.",
+    "feat.c2h":"Mirrors Finder favorites","feat.c2p":"A native SwiftUI sidebar reads Finder's shared list—and you can drag to reorder.",
+    "feat.c3h":"A real Finder-style list","feat.c3p":"NSOutlineView powers multi-column, sortable headers, Group by Kind, and spacebar Quick Look.",
+    "feat.c4h":"Global hotkeys","feat.c4p":"Registered via Carbon—no extra permissions. ⌘` to summon, ⌃⌥ + arrows to pick an edge.",
+    "feat.c5h":"Appears on every Space","feat.c5p":"One line of collectionBehavior—summon it over any Space and full-screen apps.",
+    "feat.c6h":"Remembers your size","feat.c6p":"Drag the drawer's inner edge to resize; next time it's exactly how you left it.",
+    "inst.eyebrow":"Install","inst.h2":"Just drag it to Applications",
+    "inst.lead":"Download, unzip, drag in. For the self-signed app, open it the first time via right-click → Open, or clear quarantine with the line below.",
+    "inst.cmt":"clear quarantine, then open","inst.btn":"Download latest",
+    "inst.fdah":"Full Disk Access: ","inst.fdap":"The drawer browses your whole file system and the sidebar mirrors Finder favorites, so grant Findly access in System Settings → Privacy & Security → Full Disk Access. Without it, protected folders (Desktop, Documents, Downloads, cloud storage) show up empty.",
+    "note.eyebrow":"One more thing",
+    "note.p1":"I wanted a file drawer I could summon on a whim and dismiss just as fast. Borrowing the real Finder's window cost too much, so I built my own—and got a far cleaner architecture for it.",
+    "note.p2":"Findly is tiny, open source, and free. The whole thing grew out of conversations with Claude Code. If it makes grabbing a file smoother for you too, it was worth it.",
+    "note.role":"Author · GitHub","foot.dl":"Download","foot.docs":"Docs","foot.by":"by"
+  }
+};
+function setLang(lang){
+  document.documentElement.lang = lang==="zh"?"zh-Hant":"en";
+  document.querySelectorAll("[data-i]").forEach(el=>{
+    const v=I18N[lang][el.getAttribute("data-i")];
+    if(v!=null) el.innerHTML=v;
+  });
+  document.querySelectorAll(".lang button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
+  try{localStorage.setItem("findly-lang",lang)}catch(e){}
+}
+document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+let saved=null;
+try{saved=localStorage.getItem("findly-lang");}catch(e){}
+if(!saved) saved=(navigator.language||"").toLowerCase().startsWith("zh")?"zh":"en";
+setLang(saved==="en"?"en":"zh");
+
+const tg=document.getElementById("toggle"), sc=document.getElementById("screen");
+tg.onclick=()=>{tg.classList.toggle("on");sc.classList.toggle("on");};
+</script>
+</body>
+</html>
