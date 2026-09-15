@@ -1167,19 +1167,35 @@ extension FileBrowserView: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
         }
     }
 
-    /// Screen rect of the previewed file's row, so the panel zooms from/to it.
+    /// Screen rect of the previewed file's row icon, so the panel zooms from/to
+    /// it like Finder. Returning the whole row squashed the preview into a wide
+    /// strip on close; `.zero` (row scrolled away, drawer hidden) makes the panel
+    /// fade instead.
     nonisolated func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: QLPreviewItem!) -> NSRect {
         // Pull the URL out before hopping isolation — URL is Sendable, the item isn't.
         guard let url = item?.previewItemURL else { return .zero }
         return MainActor.assumeIsolated {
-            guard let window = content.window else { return .zero }
-            for row in 0..<content.numberOfRows {
-                guard let node = content.item(atRow: row) as? Node, node.url == url else { continue }
-                let inWindow = content.convert(content.rect(ofRow: row), to: nil)
+            guard let window = content.window, window.isVisible else { return .zero }
+            let nameColumn = content.column(withIdentifier: NSUserInterfaceItemIdentifier("name"))
+            guard nameColumn >= 0 else { return .zero }
+            let visibleRows = content.rows(in: content.visibleRect)
+            for row in visibleRows.lowerBound..<visibleRows.upperBound {
+                guard let node = content.item(atRow: row) as? Node, node.url == url,
+                      let cell = content.view(atColumn: nameColumn, row: row, makeIfNecessary: false) as? NSTableCellView,
+                      let icon = cell.imageView else { continue }
+                let inWindow = icon.convert(icon.bounds, to: nil)
                 return window.convertToScreen(inWindow)
             }
             return .zero
         }
+    }
+
+    /// Image drawn while zooming to/from the source frame — the file's icon,
+    /// matching the rect above.
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, transitionImageFor item: QLPreviewItem!,
+                                  contentRect: UnsafeMutablePointer<NSRect>!) -> Any! {
+        guard let url = item?.previewItemURL else { return nil }
+        return MainActor.assumeIsolated { NSWorkspace.shared.icon(forFile: url.path) }
     }
 }
 
