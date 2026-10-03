@@ -226,6 +226,20 @@
     .nav-link.hide-sm{display:none}
     .drawer{width:78%}
   }
+
+  /* 安裝步驟（給第一次用終端機的人） */
+  .how-steps{max-width:700px;margin:34px auto 0;list-style:none;display:grid;gap:12px;text-align:left;counter-reset:st}
+  .how-steps li{position:relative;padding:15px 20px 15px 62px;background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;color:var(--muted);font-size:15px;line-height:1.6;counter-increment:st}
+  .how-steps li::before{content:counter(st);position:absolute;left:18px;top:14px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg-soft);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .how-steps li b{color:var(--ink)}
+  .how-steps kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-bottom-width:2px;border-radius:6px;padding:1px 7px;color:var(--ink)}
+  .install-box{position:relative}
+  .install-box pre{white-space:pre-wrap;word-break:break-all}
+  .install-box .cmd{user-select:all;-webkit-user-select:all;cursor:text}
+  .copy-btn{position:absolute;top:9px;right:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#eef0f4;font:600 13px/1 -apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer;transition:.2s}
+  .copy-btn:hover{background:rgba(255,255,255,.16)}
+  .copy-btn.ok{background:#28c840;border-color:transparent;color:#06210d}
+  .why{max-width:700px;margin:16px auto 0;font-size:13.5px;color:var(--muted);text-align:left}
 </style>
 </head>
 <body>
@@ -323,13 +337,19 @@
   <div class="wrap center">
     <span class="eyebrow" data-i="inst.eyebrow">安裝</span>
     <h2 data-i="inst.h2">拖進「應用程式」就好</h2>
-    <p class="lead" data-i="inst.lead">下載解壓、拖進去。自簽 App 第一次打開用右鍵 → 打開，或跑下面這行清掉 quarantine。</p>
+    <p class="lead" data-i="inst.lead">跟著四個步驟做，大約一分鐘。第三步會用到「終端機」，不用怕，複製貼上就好。</p>
+    <ol class="how-steps">
+      <li data-i="inst.s1">按<a href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener" style="color:var(--ink);text-decoration:underline">這裡的「下載最新版」</a>，從 GitHub 下載 <b>Findly</b> 的 <b>.zip</b> 檔。</li>
+      <li data-i="inst.s2">到「下載項目」資料夾雙擊 zip 解壓縮，把 <b>Findly</b> 拖進「應用程式」資料夾。</li>
+      <li data-i="inst.s3">打開「終端機」：按 <kbd>⌘</kbd> + <kbd>空白鍵</kbd> 叫出 Spotlight，輸入「<b>終端機</b>」（英文系統輸入 Terminal），按 <kbd>Return</kbd>。</li>
+      <li data-i="inst.s4">按下面黑色框右上角的「<b>複製</b>」，回到終端機按 <kbd>⌘</kbd> + <kbd>V</kbd> 貼上，再按 <kbd>Return</kbd>。Findly 就會打開，之後從「應用程式」直接開就好。</li>
+    </ol>
     <div class="install-box">
       <div class="bar"><i></i><i></i><i></i></div>
-      <pre><span class="c"># <span data-i="inst.cmt">清除 quarantine 後直接打開</span></span>
-xattr -dr com.apple.quarantine /Applications/Findly.app
-open /Applications/Findly.app</pre>
+      <button class="copy-btn" type="button" data-target="installCmd" data-i="inst.copy">複製</button>
+      <pre><span class="cmd" id="installCmd">xattr -dr com.apple.quarantine /Applications/Findly.app && open /Applications/Findly.app</span></pre>
     </div>
+    <p class="why" data-i="inst.why">為什麼要這一步？Findly 是免費的自簽 app，沒有經過 Apple 公證，macOS 會擋下第一次開啟。這行指令只是拿掉下載時被加上的「隔離」標記，再幫你打開 Findly，不會改動其他東西，只需要做一次。</p>
     <p class="fda"><b data-i="inst.fdah">完整磁碟取用權限：</b><span data-i="inst.fdap">抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。</span></p>
     <div class="cta" style="margin-top:30px">
       <a class="btn btn-primary" href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener"><span data-i="inst.btn">下載最新版</span></a>
@@ -386,7 +406,7 @@ const I18N = {
     "feat.c5h":"出現在每個 Space","feat.c5p":"一行 collectionBehavior，跨所有 Space 與全螢幕 app 都召喚得出來。",
     "feat.c6h":"記住你的尺寸","feat.c6p":"拖抽屜內側邊界調整寬高，下次召喚就是你上次的大小。",
     "inst.eyebrow":"安裝","inst.h2":"拖進「應用程式」就好",
-    "inst.lead":"下載解壓、拖進去。自簽 App 第一次打開用右鍵 → 打開，或跑下面這行清掉 quarantine。",
+    "inst.lead":"跟著四個步驟做，大約一分鐘。第三步會用到「終端機」，不用怕，複製貼上就好。","inst.s1":"按<a href=\"https://github.com/rocavence/Findly-app/releases/latest\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--ink);text-decoration:underline\">這裡的「下載最新版」</a>，從 GitHub 下載 <b>Findly</b> 的 <b>.zip</b> 檔。","inst.s2":"到「下載項目」資料夾雙擊 zip 解壓縮，把 <b>Findly</b> 拖進「應用程式」資料夾。","inst.s3":"打開「終端機」：按 <kbd>⌘</kbd> + <kbd>空白鍵</kbd> 叫出 Spotlight，輸入「<b>終端機</b>」（英文系統輸入 Terminal），按 <kbd>Return</kbd>。","inst.s4":"按下面黑色框右上角的「<b>複製</b>」，回到終端機按 <kbd>⌘</kbd> + <kbd>V</kbd> 貼上，再按 <kbd>Return</kbd>。Findly 就會打開，之後從「應用程式」直接開就好。","inst.copy":"複製","inst.why":"為什麼要這一步？Findly 是免費的自簽 app，沒有經過 Apple 公證，macOS 會擋下第一次開啟。這行指令只是拿掉下載時被加上的「隔離」標記，再幫你打開 Findly，不會改動其他東西，只需要做一次。",
     "inst.cmt":"清除 quarantine 後直接打開","inst.btn":"下載最新版",
     "inst.fdah":"完整磁碟取用權限：","inst.fdap":"抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。",
     "note.eyebrow":"寫在最後",
@@ -415,7 +435,7 @@ const I18N = {
     "feat.c5h":"Appears on every Space","feat.c5p":"One line of collectionBehavior—summon it over any Space and full-screen apps.",
     "feat.c6h":"Remembers your size","feat.c6p":"Drag the drawer's inner edge to resize; next time it's exactly how you left it.",
     "inst.eyebrow":"Install","inst.h2":"Just drag it to Applications",
-    "inst.lead":"Download, unzip, drag in. For the self-signed app, open it the first time via right-click → Open, or clear quarantine with the line below.",
+    "inst.lead":"Four steps, about a minute. Step 3 uses Terminal — don't worry, it's just copy and paste.","inst.s1":"Click <a href=\"https://github.com/rocavence/Findly-app/releases/latest\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--ink);text-decoration:underline\"><b>Download latest</b></a> and download the <b>.zip</b> file from GitHub.","inst.s2":"Open your Downloads folder, double-click the zip to unzip it, and drag <b>Findly</b> into the Applications folder.","inst.s3":"Open <b>Terminal</b>: press <kbd>⌘</kbd> + <kbd>Space</kbd> for Spotlight, type <b>Terminal</b>, and press <kbd>Return</kbd>.","inst.s4":"Click <b>Copy</b> at the top right of the black box below, go back to Terminal, press <kbd>⌘</kbd> + <kbd>V</kbd> to paste, then press <kbd>Return</kbd>. Findly opens; after that, open it from Applications as usual.","inst.copy":"Copy","inst.why":"Why this step? Findly is a free, self-signed app that isn't notarized by Apple, so macOS blocks the first launch. This line only removes the quarantine flag added when you downloaded it, then opens Findly. It changes nothing else, and you only need to do it once.",
     "inst.cmt":"clear quarantine, then open","inst.btn":"Download latest",
     "inst.fdah":"Full Disk Access: ","inst.fdap":"The drawer browses your whole file system and the sidebar mirrors Finder favorites, so grant Findly access in System Settings → Privacy & Security → Full Disk Access. Without it, protected folders (Desktop, Documents, Downloads, cloud storage) show up empty.",
     "note.eyebrow":"One more thing",
@@ -441,6 +461,15 @@ setLang(saved==="en"?"en":"zh");
 
 const tg=document.getElementById("toggle"), sc=document.getElementById("screen");
 tg.onclick=()=>{tg.classList.toggle("on");sc.classList.toggle("on");};
+</script>
+<script>
+/* 安裝指令一鍵複製 */
+document.querySelectorAll(".copy-btn").forEach(b=>b.addEventListener("click",async()=>{
+  const t=document.getElementById(b.dataset.target).textContent.trim();
+  try{await navigator.clipboard.writeText(t)}catch(e){const r=document.createRange();r.selectNodeContents(document.getElementById(b.dataset.target));const s=getSelection();s.removeAllRanges();s.addRange(r);document.execCommand("copy")}
+  const zh=document.documentElement.lang!=="en";b.textContent=zh?"已複製 ✓":"Copied ✓";b.classList.add("ok");
+  setTimeout(()=>{b.textContent=zh?"複製":"Copy";b.classList.remove("ok")},1800);
+}));
 </script>
 </body>
 </html>
