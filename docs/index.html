@@ -12,10 +12,10 @@
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://findly.rocavence.com/">
 <link rel="alternate" hreflang="zh-Hant" href="https://findly.rocavence.com/">
-<link rel="alternate" hreflang="en" href="https://findly.rocavence.com/">
-<link rel="alternate" hreflang="x-default" href="https://findly.rocavence.com/">
-<link rel="icon" type="image/png" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="alternate" hreflang="en" href="https://findly.rocavence.com/en/">
+<link rel="alternate" hreflang="x-default" href="https://findly.rocavence.com/en/">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Findly">
@@ -39,26 +39,57 @@
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Findly",
+  "alternateName": "Findly for Mac",
   "applicationCategory": "UtilitiesApplication",
   "applicationSubCategory": "Menu Bar Utility",
   "operatingSystem": "macOS 14.0 or later",
   "softwareVersion": "1.0.0",
-  "description": "Findly is a free, open-source macOS menu bar utility. Press Ctrl + ~ to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It's its own window — no Apple Events, Accessibility, or private SPI — so it appears on every Space with a single line of collectionBehavior.",
+  "dateModified": "2026-10-11",
+  "description": "Findly is a free, open-source macOS menu bar utility. Press Ctrl + ~ (Control and the key left of 1) to slide a Finder-style file drawer in from any screen edge; switch to another app and it slides away. It is its own window, so it appears on every Space and over full-screen apps without Apple Events, Accessibility or private APIs.",
   "url": "https://findly.rocavence.com/",
+  "image": "https://findly.rocavence.com/icon.png",
+  "screenshot": [
+    "https://findly.rocavence.com/shots/drawer-en-dark.png",
+    "https://findly.rocavence.com/readme-shots/en-drawer-light.png",
+    "https://findly.rocavence.com/readme-shots/en-settings-shortcuts-dark.png"
+  ],
   "downloadUrl": "https://github.com/rocavence/Findly-app/releases/latest",
+  "installUrl": "https://findly.rocavence.com/#install",
   "softwareHelp": "https://github.com/rocavence/Findly-app",
+  "codeRepository": "https://github.com/rocavence/Findly-app",
   "license": "https://opensource.org/licenses/MIT",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "author": { "@type": "Person", "name": "rocavence", "url": "https://github.com/rocavence" },
+  "inLanguage": [
+    "zh-Hant",
+    "en",
+    "ja",
+    "ko",
+    "es",
+    "pt-BR"
+  ],
+  "fileSize": "1.2 MB",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "rocavence",
+    "url": "https://github.com/rocavence"
+  },
   "featureList": [
-    "Slide a file drawer in from any of the four screen edges",
-    "Summon with global hotkeys (Ctrl + ~ toggle, Ctrl + Option + arrow keys for a specific edge)",
-    "Auto-parks off-screen when you switch to another app",
-    "Finder-style list view via NSOutlineView with sortable multi-column headers and Group by Kind",
-    "Native SwiftUI sidebar that mirrors Finder favorites",
-    "Appears on every Space and over full-screen apps",
-    "Remembers the drawer size you set"
+    "Slides a Finder-style file drawer in from any of the four screen edges",
+    "Global shortcuts: Ctrl + ~ to toggle, Ctrl + Option + arrow keys for a specific edge; click the menu bar icon to toggle, right-click for the menu",
+    "Slides away when you switch to another app",
+    "Finder's list view: Name, Size, Kind and Date Modified, sortable, group by kind, folders expand in place, Finder's keyboard shortcuts, Quick Look",
+    "Finder's own sidebar: Favorites, iCloud Drive, drives with eject buttons, tags, cloud folders with their provider's icon",
+    "Choose sidebar items, or follow Finder's own sidebar settings (Same as Finder)",
+    "Drag and drop in and out; never overwrites files",
+    "Appears on every Space and over full-screen apps, on the screen the pointer is on",
+    "Remembers width and height separately, up to 85% of the screen",
+    "Six languages: Traditional Chinese, English, Japanese, Korean, Spanish, Brazilian Portuguese",
+    "Install with Homebrew: brew install --cask rocavence/tap/findly"
   ]
 }
 </script>
@@ -71,27 +102,66 @@
     {
       "@type": "Question",
       "name": "What does Findly do?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Findly is a macOS menu bar utility that slides a Finder-style file drawer in from any screen edge when you press a global hotkey (Ctrl + ~). It's a quick file browser you can summon over anything; switch to another app and it automatically slides off-screen." }
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Findly is a macOS menu bar utility that slides a Finder-style file drawer in from any screen edge when you press Ctrl + ~. Grab a file, switch back to what you were doing, and it slides away."
+      }
     },
     {
       "@type": "Question",
       "name": "Is Findly the real Finder?",
-      "acceptedAnswer": { "@type": "Answer", "text": "No. Findly is its own window with a file browser built on NSOutlineView (the same component behind Finder's list view), made to look and feel close to Finder. Using its own window means no Apple Events, no Accessibility, and no private SPI, and it can appear on every Space with a single line of collectionBehavior." }
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Findly is its own window with a file list built on NSOutlineView, the same AppKit component behind Finder's list view. Its sidebar reads Finder's own Favorites, so it looks and works like Finder without controlling Finder."
+      }
     },
     {
       "@type": "Question",
-      "name": "How do I summon the drawer?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Press Ctrl + ~ to toggle it, or use Ctrl + Option with an arrow key to summon it to the top, bottom, left, or right edge. It appears on whichever screen the mouse is on. The menu bar icon also has Toggle and Snap commands." }
+      "name": "How do I open the drawer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Press Ctrl + ~ (Control and the key to the left of 1), or click Findly's menu bar icon. Ctrl + Option with an arrow key opens it on a specific edge. It opens on whichever screen the pointer is on. Right-click the menu bar icon for the menu. Every shortcut can be changed in Settings › Shortcuts."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I install Findly?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run brew install --cask rocavence/tap/findly, or download the zip from GitHub Releases and drag Findly into Applications. Findly is self-signed, so without Homebrew the first launch needs right-click → Open or xattr -dr com.apple.quarantine /Applications/Findly.app."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can the sidebar match Finder's?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Settings › Sidebar turns each item on or off, or choose Same as Finder to follow Finder's own sidebar settings; Findly re-reads them every time the drawer opens."
+      }
     },
     {
       "@type": "Question",
       "name": "Does Findly cost anything?",
-      "acceptedAnswer": { "@type": "Answer", "text": "No. Findly is completely free and open source under the MIT license. The source code is on GitHub at github.com/rocavence/Findly-app." }
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Findly is free and open source under the MIT license. The source code is at github.com/rocavence/Findly-app."
+      }
     },
     {
       "@type": "Question",
       "name": "Why does Findly ask for Full Disk Access?",
-      "acceptedAnswer": { "@type": "Answer", "text": "The drawer browses your whole file system and its sidebar mirrors Finder's favorites, so it needs Full Disk Access. Without it, TCC-protected folders (Desktop, Documents, Downloads, CloudStorage/Dropbox) appear empty and the sidebar falls back to a built-in list. Grant it in System Settings → Privacy & Security → Full Disk Access. Requires macOS 14+." }
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The drawer browses your whole disk. Without Full Disk Access, macOS blocks Desktop, Documents, Downloads, cloud storage and external drives; the drawer says so and links to System Settings › Privacy & Security › Full Disk Access."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which macOS versions does Findly support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "macOS 14 Sonoma or later, on Apple silicon and Intel Macs."
+      }
     }
   ]
 }
@@ -249,7 +319,7 @@
 
 <nav>
   <div class="wrap">
-    <a class="brand" href="#top"><img src="icon.png" alt="Findly"><span>Findly</span></a>
+    <a class="brand" href="#top"><img src="/icon.png" alt="Findly"><span>Findly</span></a>
     <div class="nav-right">
       <a class="nav-link hide-sm" href="#how" data-i="nav.how">運作原理</a>
       <a class="nav-link hide-sm" href="#features" data-i="nav.features">功能</a>
@@ -264,7 +334,7 @@
 
 <header class="hero" id="top">
   <div class="wrap">
-    <img class="appicon" src="icon.png" alt="Findly app icon">
+    <img class="appicon" src="/icon.png" alt="Findly app icon">
     <h1 data-i="hero.h1">你的檔案抽屜，<br><span class="hl">從螢幕邊緣一鍵滑出</span></h1>
     <p class="sub" data-i="hero.sub">Findly 是常駐選單列的 macOS 小工具：按 <kbd>Ctrl</kbd> + <kbd>~</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。</p>
     <div class="cta">
@@ -279,7 +349,7 @@
         <div class="menubar"><span>🔍 Findly</span><span class="clock">22:41</span></div>
         <div class="desk-hint" data-i="demo.desk">你正在做別的事的桌面…</div>
         <div class="drawer">
-          <img class="shot" id="drawerShot" src="shots/drawer-zh-dark.png" alt="Findly 抽屜的實際畫面">
+          <img class="shot" id="drawerShot" src="/shots/drawer-zh-dark.png" alt="Findly 抽屜的實際畫面">
         </div>
       </div>
       <div class="demo-ctrl">
@@ -319,7 +389,7 @@
   </div>
 </section>
 
-<section class="block soft">
+<section class="block soft" id="install">
   <div class="wrap center">
     <span class="eyebrow" data-i="inst.eyebrow">安裝</span>
     <h2 data-i="inst.h2">拖進「應用程式」就好</h2>
@@ -356,7 +426,7 @@
       <p data-i="note.p1">我想要一個「隨手叫出來、用完就消失」的檔案抽屜。試過去借真 Finder 的視窗，發現代價太大，最後決定自己刻一個——換來乾淨非常多的架構。</p>
       <p data-i="note.p2">Findly 很小、開源、免費。整個專案是用 Claude Code 邊聊邊長出來的。如果它讓你拿檔案更順手，那就值得了。</p>
       <a class="author" href="https://github.com/rocavence" target="_blank" rel="noopener">
-        <img src="avatar.png" alt="rocavence" loading="lazy">
+        <img src="/avatar.png" alt="rocavence" loading="lazy">
         <span class="who"><b>@rocavence</b><small data-i="note.role">作者 · GitHub</small></span>
       </a>
     </div>
@@ -365,7 +435,7 @@
 
 <footer>
   <div class="wrap">
-    <div class="brand" style="font-size:15px"><img src="icon.png" alt="" style="width:24px;height:24px;border-radius:7px"><span>Findly</span></div>
+    <div class="brand" style="font-size:15px"><img src="/icon.png" alt="" style="width:24px;height:24px;border-radius:7px"><span>Findly</span></div>
     <div class="foot-links">
       <a href="https://github.com/rocavence/Findly-app" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener" data-i="foot.dl">下載</a>
@@ -444,14 +514,22 @@ function setLang(lang){
   });
   document.querySelectorAll(".lang button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
   const shot=document.getElementById("drawerShot");
-  if(shot){shot.src=lang==="zh"?"shots/drawer-zh-dark.png":"shots/drawer-en-dark.png";shot.alt=lang==="zh"?"Findly 抽屜的實際畫面":"The real Findly drawer";}
-  try{localStorage.setItem("findly-lang",lang)}catch(e){}
+  if(shot){shot.src=lang==="zh"?"/shots/drawer-zh-dark.png":"/shots/drawer-en-dark.png";shot.alt=lang==="zh"?"Findly 抽屜的實際畫面":"The real Findly drawer";}
 }
-document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+/* 中文在 /、英文在 /en/（各自是完整的靜態頁，搜尋引擎兩種語言都收得到）；切換語言就換頁 */
+const PAGE_LANG=location.pathname.startsWith("/en")?"en":"zh";
+const pageFor=l=>l==="en"?"/en/":"/";
+document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>{
+  try{localStorage.setItem("findly-lang",b.dataset.lang)}catch(e){}
+  if(b.dataset.lang!==PAGE_LANG) location.href=pageFor(b.dataset.lang)+location.hash;
+});
 let saved=null;
 try{saved=localStorage.getItem("findly-lang");}catch(e){}
-if(!saved) saved=(navigator.language||"").toLowerCase().startsWith("zh")?"zh":"en";
-setLang(saved==="en"?"en":"zh");
+// 第一次來、沒選過語言：依瀏覽器語言帶到對的頁；爬蟲不轉，兩頁都照原樣收錄
+if(!saved&&!/bot|crawl|spider|slurp|preview/i.test(navigator.userAgent))
+  saved=(navigator.language||"").toLowerCase().startsWith("zh")?"zh":"en";
+if(saved&&saved!==PAGE_LANG) location.replace(pageFor(saved)+location.hash);
+setLang(PAGE_LANG);
 
 const tg=document.getElementById("toggle"), sc=document.getElementById("screen");
 tg.onclick=()=>{tg.classList.toggle("on");sc.classList.toggle("on");};

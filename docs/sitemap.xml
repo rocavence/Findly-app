@@ -3,10 +3,20 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://findly.rocavence.com/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-10-11</lastmod>
     <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://findly.rocavence.com/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://findly.rocavence.com/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://findly.rocavence.com/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://findly.rocavence.com/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://findly.rocavence.com/en/"/>
+  </url>
+  <url>
+    <loc>https://findly.rocavence.com/en/</loc>
+    <lastmod>2026-10-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://findly.rocavence.com/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://findly.rocavence.com/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://findly.rocavence.com/en/"/>
+  </url>
+  <url>
+    <loc>https://findly.rocavence.com/llms.txt</loc>
+    <lastmod>2026-10-11</lastmod>
   </url>
 </urlset>

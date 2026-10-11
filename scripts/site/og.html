@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- 分享圖 docs/og.png 與 docs/og-en.png 的版型：複製到 docs/ 開本機伺服器，瀏覽器視窗設 1200×630，開 ?lang=zh 與 ?lang=en 各截一張 -->
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden;background:#0a0b0d}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang TC",sans-serif;color:#f2f3f5;position:relative}
+  .glow{position:absolute;inset:0;background:radial-gradient(700px 420px at 18% 30%,rgba(41,140,255,.28),transparent 70%),radial-gradient(600px 500px at 95% 110%,rgba(41,140,255,.14),transparent 70%)}
+  .left{position:absolute;left:72px;top:0;bottom:0;width:560px;display:flex;flex-direction:column;justify-content:center;gap:26px}
+  .brand{display:flex;align-items:center;gap:20px}
+  .brand img{width:96px;height:96px;border-radius:22px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+  .brand b{font-size:58px;letter-spacing:-1.5px}
+  h1{font-size:46px;line-height:1.22;letter-spacing:-.8px;font-weight:700}
+  h1 span{color:#5aa8ff}
+  p{font-size:24px;line-height:1.55;color:#c3c6ce}
+  kbd{display:inline-block;font:600 21px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-bottom-width:3px;border-radius:8px;padding:6px 11px;color:#fff;vertical-align:2px}
+  .meta{font-size:19px;color:#8d919a;display:flex;gap:14px;align-items:center}
+  .meta i{width:5px;height:5px;border-radius:50%;background:#555a63;display:block}
+  .shot{position:absolute;right:-40px;top:58px;width:560px;border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.08)}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="left">
+  <div class="brand"><img src="/icon.png?v=findly" alt=""><b>Findly</b></div>
+  <h1 id="h1"></h1>
+  <p id="p"></p>
+  <div class="meta" id="meta"></div>
+</div>
+<img class="shot" id="shot" alt="">
+<script>
+const zh=new URLSearchParams(location.search).get("lang")!=="en";
+const K='<kbd>Ctrl</kbd> + <kbd>~</kbd>';
+document.documentElement.lang=zh?"zh-Hant":"en";
+h1.innerHTML=zh?'你的檔案抽屜，<br><span>從螢幕邊緣一鍵滑出</span>':'Your file drawer,<br><span>one key from any edge</span>';
+p.innerHTML=zh?`按 ${K} 滑出 Finder 風格的檔案抽屜，<br>切回別的 App 它就自己收起來。`:`Press ${K} for a Finder-style file drawer.<br>Switch apps and it slides away.`;
+meta.innerHTML=(zh?['macOS 14+','免費開源','findly.rocavence.com']:['macOS 14+','Free & open source','findly.rocavence.com']).join('<i></i>');
+shot.src=(zh?"/shots/drawer-zh-dark.png":"/shots/drawer-en-dark.png")+"?v=findly";
+</script>
+</body>
+</html>
