@@ -1,9 +1,12 @@
 .DS_Store
 /.build
 /build
-/Packages
+/dist
+/.cache
 xcuserdata/
 DerivedData/
 .swiftpm/
-.netrc
-/Findly-*.zip
+*.xcodeproj/
+Config/Signing.local.xcconfig
+
+/.netrc

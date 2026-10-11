@@ -1,135 +1,96 @@
-# Findly
-
-[繁體中文](README.md) · **English**
-
-Slide a Finder-style file drawer out from any edge of the screen. Summon it from the menu bar or a global hotkey; click into another app and it slides back off-screen automatically.
-
 <p align="center">
-  <img src="Resources/icon-1024.png" width="160" alt="Findly icon">
+  <img src="scripts/icon/icon-1024.png" width="128" alt="Findly icon">
 </p>
 
-## What it does
+<h1 align="center">Findly</h1>
 
-Findly is a macOS menu bar utility. It's **its own window** (not the real Finder) that slides in/out from any of the four screen edges, holding a file browser styled to look a lot like Finder's list view.
+<p align="center">
+  Press <b>⌃`</b> and a Finder-style file drawer slides in from any edge of the screen.<br>
+  Grab a file, switch back to what you were doing, and it slides away.
+</p>
 
-- ⌘\` to summon/dismiss; ⌃⌥ ↑ / ↓ / ← / → to summon to the top/bottom/left/right
-- It summons to whichever screen the mouse is on
-- Switch to another app → it slides off-screen automatically; press the hotkey again to bring it back
-- Drag the inner edge to resize the width/height → it remembers for next time
-- Because it's its own window, a single line of `collectionBehavior` makes it appear on every Space — no touching Finder, Apple Events, or private SPI
+<p align="center"><a href="https://findly.rocavence.com">findly.rocavence.com</a> · <a href="README.md">繁體中文</a> · <b>English</b></p>
 
-### What's inside the drawer
-
-A new **macOS 26 "Liquid Glass" look**: a translucent window with the sidebar and file list as two rounded inset cards, a back/forward + search toolbar, drag & drop of files in and out, and Traditional Chinese localization.
-
-- **Sidebar**: a **native SwiftUI sidebar** (a `List` with `.listStyle(.sidebar)`, hosted via `NSHostingView`) that **mirrors Finder's Favorites** — it reads Finder's shared file list (which needs Full Disk Access) — and is **drag-reorderable**
-- **File list** (right pane): a Finder list view backed by `NSOutlineView`
-  - **Multiple columns**: Name / Size / Kind / Date Modified, **click a column header to sort** (natural numeric sort, so `file2` comes before `file10`)
-  - **Group by Kind**: static section headers like Finder's "Arrange by → Kind" (Folders / Documents / Images / Audio …)
-  - **Enter folders**: double-click to go deeper, top-left Back to go up; folders can also be expanded in place via the disclosure triangle
-  - **Multi-select**: rubber-band drag / Shift / ⌘ click / ⌘A to select all
-  - **Context menu**: Open / Quick Look / Show in Finder / Rename / Move to Trash
-  - **Spacebar Quick Look**, Enter to open
-  - Applications merge in `/System/Applications`, and symlinks (e.g. Dropbox → CloudStorage) resolve to their real folders
-
-## Why it works this way
-
-The original direction was "don't rebuild the file-browsing UI" — just open a real Finder window with AppleScript and control its position and size with the Accessibility API, treating the real Finder as the drawer.
-
-That path works, but the price is steep: you have to stuff a Finder window into every Space yourself, moving windows across Spaces is impossible under SIP, you need private SkyLight/CGS SPI, you have to tell "our" windows apart from the user's own, auto-park has to guess intent from timestamps… all the complexity piles onto "borrowing someone else's window."
-
-So the direction changed: **the drawer uses its own window.** The window is ours, so:
-
-- A single line — `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` — makes it appear on every Space, no CGS gymnastics
-- No Apple Events, no Accessibility, no private SPI, no per-Space bookkeeping
-- We control the slide in/out animation ourselves; parking is just moving the frame off-screen
-
-The cost is that the file-browsing UI has to be built by hand — but with `NSOutlineView` (the component underneath Finder's list view) you can get very close, and you get a far cleaner architecture in return.
+<p align="center">
+  <img src="docs/readme-shots/en-drawer-dark.png" width="720" alt="The Findly drawer: Finder's own sidebar on the left, a sortable list with folders that expand in place on the right">
+</p>
 
 ## Install
 
-Download the latest `Findly-x.y.z.zip` from [Releases](https://github.com/rocavence/Findly-app/releases/latest), unzip it, and drag **Findly.app** into `/Applications`.
-
-Findly is self-signed (not notarized by Apple), so the first launch may be blocked ("Apple could not verify … is free of malware"). Allow it with either:
-- **Right-click → Open**, then click **Open** in the dialog; or
-- Terminal: `xattr -dr com.apple.quarantine /Applications/Findly.app`, then open it.
-
-**Full Disk Access** — the drawer browses the whole file system and mirrors Finder's Favorites in the sidebar. Grant it in System Settings → Privacy & Security → Full Disk Access. Without it, TCC-protected folders (Desktop, Documents, Downloads, CloudStorage/Dropbox…) show empty and the sidebar falls back to a built-in list.
-
-<details><summary>Build from source</summary>
-
-```bash
-git clone https://github.com/rocavence/Findly-app.git
-cd Findly-app
-./Scripts/build-app.sh
-open build/Findly.app
+```sh
+brew install --cask rocavence/tap/findly
 ```
-Requires Xcode Command Line Tools.
-</details>
 
-## Usage
+Or download `Findly-x.y.z.zip` from [Releases](https://github.com/rocavence/Findly-app/releases/latest), unzip it, and drag **Findly** into Applications. It's self-signed (not notarized by Apple), so the first launch needs right-click → Open, or `xattr -dr com.apple.quarantine /Applications/Findly.app`. Homebrew handles that for you.
 
-| Action | Trigger |
+Findly browses the whole disk, so it needs Full Disk Access: turn on Findly in System Settings › Privacy & Security › Full Disk Access. Settings › Permissions shows whether it's on. Without it, Desktop, Documents, Downloads and external drives can't be opened, and the drawer says so, with a button to the right settings pane. Requires macOS 14 or later.
+
+## Use
+
+| Action | How |
 |---|---|
-| Summon / dismiss | menu bar icon → Toggle Drawer, or ⌘\` |
-| Summon to an edge | menu bar icon → Snap, or ⌃⌥ + arrow keys |
-| Dismiss | switch to another app (automatic), or press the hotkey again |
-| Sort | click a column header; or use Group by Kind |
-| Enter folder / go up | double-click a folder / top-left Back |
-| Act on a file | right-click: Open / Quick Look / Show in Finder / Rename / Move to Trash |
-| Resize | drag the inner edge of the window; it's remembered |
+| Open or close the drawer | `` ⌃` ``, or click the menu bar icon (right-click for the menu) |
+| Open on a given edge | `⌃⌥` + arrow |
+| Close | Switch to another app (can be turned off), or press the shortcut again |
+| Open a file or folder | Double-click, `⌘↓`, `⌘O` |
+| Back / Forward / Up | `⌘[`, `⌘]`, `⌘↑`, or the mouse's side buttons |
+| Rename | `Return` (selects the name without its extension) |
+| Move to Trash | `⌘⌫` |
+| Quick Look | Space; `⌥` Space for full screen; works on several files |
+| Search | `⌘F`; this folder, or its subfolders too (via Spotlight) |
+| Show hidden files | `⌘⇧.` |
+| Resize | Drag the drawer's inner edge; width and height are remembered separately, up to 85% of the screen |
 
-## Tech stack
+Every shortcut can be changed in Settings › Shortcuts. The recorder refuses combos already used by another action or by macOS, and marks any shortcut another app has taken. VS Code uses `` ⌃` `` for its terminal, so while VS Code is in front, it gets that shortcut.
 
-- **Swift 6** / **AppKit** (pure system frameworks, no third-party dependencies)
-- **`NSPanel`** custom-drawn drawer, `collectionBehavior` across all Spaces
-- **SwiftUI** sidebar — a `List` with `.listStyle(.sidebar)` hosted via `NSHostingView` — alongside AppKit
-- **`NSOutlineView`** for the file list (view-based, multiple columns + sortable headers + group rows)
-- **`UniformTypeIdentifiers`** to classify by `UTType`; **Quick Look** previews
-- **Carbon `RegisterEventHotKey`** for the global hotkey (no extra permissions needed)
-- **Swift Package Manager** + a shell script to build the `.app` bundle + a stable self-signed codesign
-- **`CGContext` + `sips` + `iconutil`** to generate the icon programmatically
+## What it does
 
-## Project structure
+- **Finder's own sidebar**: Favorites in Finder's order, iCloud Drive, Locations (eject external and network drives right there; updates as they come and go) and Tags (shows every file with that tag; folded at first). Turn each item on or off in Settings › Sidebar, as in Finder.
+- **Finder's list view**: Name, Size, Kind and Date Modified, sortable by header, grouped by kind if you like, with folders that expand in place. Text follows Finder's View Options size.
+- **Stays current**: FSEvents watches the folder and any expanded ones; a refresh keeps what's expanded, selected and scrolled.
+- **Drag and drop**: drag files out into any app, or in: onto the list, a folder row, the sidebar or the path bar. Moves within a disk and copies across, like Finder; a clashing name gets a number instead of overwriting. Progress shows above the list.
+- **On every Space**: the drawer is Findly's own window, so it opens over full-screen apps too, always on the screen the pointer is on.
+- **Six languages**: 繁體中文, English, 日本語, 한국어, Español, Português (Brasil).
 
-```
-Findly-app/
-├── Package.swift
-├── Sources/Findly/
-│   ├── main.swift              # NSApplication entry
-│   ├── AppDelegate.swift       # menu bar + summon routing (+ debug window mode)
-│   ├── DrawerController.swift  # slide in/out, auto-park, drag-to-resize, animation
-│   ├── DrawerWindow.swift      # custom-drawn NSPanel, across all Spaces
-│   ├── FileBrowserView.swift   # Finder list view (sidebar + columns + grouping + context menu)
-│   ├── FullDiskAccess.swift    # detect FDA and guide the user
-│   ├── HotkeyManager.swift     # Carbon global hotkey
-│   ├── ScreenEdge.swift        # edge frame calculation
-│   └── Defaults.swift          # UserDefaults wrapper
-├── Resources/                  # Info.plist / AppIcon.icns / icon-1024.png
-├── Scripts/                    # build-app.sh / make-icon.{sh,swift}
-└── Tests/FindlyTests/
+<table>
+  <tr>
+    <td width="50%"><img src="docs/readme-shots/en-settings-shortcuts-dark.png" alt="Settings › Shortcuts: each action's shortcut, to record again or reset"></td>
+    <td width="50%"><img src="docs/readme-shots/en-drawer-light.png" alt="The Findly drawer in light mode"></td>
+  </tr>
+</table>
+
+## Build from source
+
+```sh
+brew install xcodegen
+./scripts/build-app.sh --install      # builds dist/Findly-<version>.zip and installs it
 ```
 
-## Debug flags
+Put your signing identity in `Config/Signing.local.xcconfig` (`CODE_SIGN_IDENTITY = …`); with a stable identity, Full Disk Access survives rebuilds.
 
-| Environment variable | Effect |
-|---|---|
-| `FINDLY_DEBUG_AUTOSHOW=1` | Slide the drawer out automatically on launch |
-| `FINDLY_DEBUG_NOPARK=1` | Disable auto-park (pin the drawer open while testing) |
-| `FINDLY_DEBUG_WINDOW=1` | Put the browser in a normal window, bypassing the drawer/FDA, for easy screenshots |
-| `FINDLY_DEBUG_PATH=<path>` | Specify the path the debug window opens |
+```sh
+xcodebuild test -project Findly.xcodeproj -scheme Findly   # unit tests
+./scripts/selftest.sh [item]                                 # end-to-end, in a fake folder tree
+./scripts/screenshots.sh [language] [light|dark]             # README and website shots
+```
 
-## Known limitations
+```
+Findly/
+├── App/          entry point, menu bar, preferences, update check, self-test
+├── Drawer/       drawer window, slide in and out, screen-edge geometry
+├── Browser/      the browser: file list, sidebar, path bar, notices
+├── Model/        file items, folder reading, sorting and grouping, history, FSEvents watcher
+├── Services/     file operations, Finder's sidebar, Spotlight, Full Disk Access
+├── Hotkeys/      global shortcuts (Carbon RegisterEventHotKey)
+├── Settings/     the settings card
+└── DesignSystem/ type, spacing, colours, accent, Reicon icons
+scripts/          build-app.sh, selftest.sh, screenshots.sh, update-cask.py, icon/, reicon/, l10n/
+```
 
-- Only tested on macOS 14+, with the primary test environment being macOS 26 (Tahoe)
-- A stable self-signed identity (still not Apple-notarized), so downloaded copies are Gatekeeper-blocked until the quarantine attribute is cleared (see Install)
-- The file browser is an *approximation* of Finder, not the real thing — tags, tabs, column view, etc. are not yet implemented
-- On first launch, if FDA hasn't been granted yet, the System Settings window can steal focus and make the auto-presented drawer park immediately
+## Design notes
 
-## How this project was made
+The first Findly drove a real Finder window as the drawer, opening it with AppleScript and moving it with the Accessibility API. It worked, but needed a Finder window per Space and private APIs; all the complexity came from borrowing someone else's window. Switching to its own window put it on every Space with one line of `collectionBehavior`.
 
-The whole project grew conversationally with [Claude Code](https://claude.com/claude-code) across several sessions — including the big architectural pivot above ("drive the real Finder → custom-drawn drawer"), and the back-and-forth iteration of swapping the browser from an `NSBrowser` column view to an `NSOutlineView` list view.
+Version 1.0 is a rebuild: the list and sidebar are AppKit (`NSOutlineView`), folders are read off the main thread, the drawer opens on the current screen every time with a size limit, and the default shortcut moved from `` ⌘` `` to `` ⌃` ``, giving macOS back its shortcut for cycling an app's windows. It shares its settings card, design system, six languages and update check with [Configgy](https://configgy.rocavence.com), [Gamely](https://gamely.rocavence.com) and [Flione](https://flione.rocavence.com).
 
-## License
-
-MIT
+<sub>Licensed under MIT · a personal tool, shared as-is, with no warranty · built with Claude Code.</sub>

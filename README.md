@@ -1,135 +1,96 @@
-# Findly
-
-**繁體中文** · [English](README.en.md)
-
-從螢幕任一邊滑出一個 Finder 風格的檔案抽屜。選單列、全域快捷鍵召喚，點到其他 app 就自動滑回邊外。
-
 <p align="center">
-  <img src="Resources/icon-1024.png" width="160" alt="Findly icon">
+  <img src="scripts/icon/icon-1024.png" width="128" alt="Findly 圖示">
 </p>
 
-## 它在做什麼
+<h1 align="center">Findly</h1>
 
-Findly 是一個 macOS menu bar 小工具。它是一個**自己的視窗**（不是真的 Finder），可以從螢幕四側任一邊滑進/滑出，裡面是一個做得很像 Finder 列表檢視的檔案瀏覽器。
+<p align="center">
+  按 <b>⌃`</b>，從螢幕任一邊滑出一個 Finder 風格的檔案抽屜。<br>
+  拿完檔案、切回別的 App，它就自己收起來。
+</p>
 
-- ⌘\` 召喚／收起；⌃⌥ ↑ / ↓ / ← / → 召喚到上/下/左/右
-- 滑鼠在哪個螢幕，就召喚到那個螢幕
-- 切換到其他 app → 自動滑出螢幕外；再按一次快捷鍵滑回來
-- 拖過內側邊界調整寬高 → 下次召喚記得
-- 因為是自己的視窗，靠 `collectionBehavior` 一行就出現在每個 Space，不需要碰 Finder、Apple Events 或私有 SPI
+<p align="center"><a href="https://findly.rocavence.com">findly.rocavence.com</a> · <b>繁體中文</b> · <a href="README.en.md">English</a></p>
 
-### 抽屜裡是什麼
-
-全新的 **macOS 26「Liquid Glass」外觀**：半透明視窗，把側欄與檔案列表做成兩張圓角內嵌卡片，一條 上一頁/下一頁 + 搜尋 工具列，檔案可拖放進出，並有繁體中文在地化。
-
-- **側邊欄**：一個**原生 SwiftUI 側欄**（用 `List` 搭配 `.listStyle(.sidebar)`，透過 `NSHostingView` 承載），會**鏡像 Finder 的最愛**——它讀取 Finder 的共享檔案清單（需要完整磁碟取用權限）——而且可以**拖曳重新排序**
-- **檔案列表**（右側窗格）：仍由 `NSOutlineView` 撐起的 Finder 列表檢視
-  - **多欄位**：名稱 / 大小 / 種類 / 修改日期，**點欄位標題就排序**（自然數字排序，`file2` 在 `file10` 前）
-  - **Group by Kind**：像 Finder「整理方式 → 種類」那樣的靜態分區標題（資料夾 / 文件 / 影像 / 音訊 …）
-  - **進資料夾**：雙擊進入下一層、左上 Back 回上層；資料夾也能用展開三角形就地展開
-  - **多選**：拖曳框選 / Shift / ⌘ 點選 / ⌘A 全選
-  - **右鍵選單**：開啟 / Quick Look / 在 Finder 中顯示 / 重新命名 / 移到垃圾桶
-  - **空白鍵 Quick Look**、Enter 開啟
-  - 應用程式合併 `/System/Applications`，symlink（如 Dropbox → CloudStorage）會解析成真實資料夾
-
-## 為什麼是這個樣子
-
-最初的方向是「不要重做檔案瀏覽 UI」——直接用 AppleScript 開一個真的 Finder 視窗，再用 Accessibility API 控制它的位置大小，把真 Finder 當抽屜。
-
-這條路能跑，但要付的代價很大：每個 Space 要自己塞一個 Finder 視窗、跨 Space 移動視窗在 SIP 下做不到、要用私有 SkyLight/CGS SPI、要分辨「我們的」視窗 vs 使用者自己的視窗、auto-park 要靠時間戳記猜意圖……複雜度全壓在「借用別人的視窗」這件事上。
-
-最後換方向：**抽屜用自己的視窗**。視窗是自己的，所以：
-
-- 一行 `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` 就出現在每個 Space，沒有 CGS 體操
-- 沒有 Apple Events、沒有 Accessibility、沒有私有 SPI、沒有 per-Space 記帳
-- 滑入/滑出動畫自己掌控，park 只是把 frame 移到螢幕外
-
-代價是檔案瀏覽 UI 得自己刻——但用 `NSOutlineView`（Finder 列表檢視的底層元件）可以做到很接近，而且換來的是乾淨非常多的架構。
+<p align="center">
+  <img src="docs/readme-shots/zh-Hant-drawer-dark.png" width="720" alt="Findly 抽屜：左邊是和 Finder 相同的側邊欄，右邊是可排序、可就地展開的檔案列表">
+</p>
 
 ## 安裝
 
-從 [Releases](https://github.com/rocavence/Findly-app/releases/latest) 下載最新的 `Findly-x.y.z.zip`,解壓後把 **Findly.app** 拖進「應用程式」。
-
-Findly 是自簽 app(未經 Apple 公證),第一次打開可能被擋(「Apple 無法驗證…是否含有惡意軟體」)。用以下任一方式放行:
-- **右鍵 → 打開**,在對話框再按一次「打開」;或
-- 終端機執行 `xattr -dr com.apple.quarantine /Applications/Findly.app`,再打開。
-
-**完整磁碟取用權限**:抽屜要瀏覽整個檔案系統(側欄也會鏡像 Finder 最愛)。到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話,TCC 保護的資料夾(桌面、文件、下載、CloudStorage/Dropbox …)會列成空的,側欄會退回內建清單。
-
-<details><summary>從原始碼自行 build</summary>
-
-```bash
-git clone https://github.com/rocavence/Findly-app.git
-cd Findly-app
-./Scripts/build-app.sh
-open build/Findly.app
+```sh
+brew install --cask rocavence/tap/findly
 ```
-只需要 Xcode Command Line Tools。
-</details>
+
+也可以到 [Releases](https://github.com/rocavence/Findly-app/releases/latest) 下載 `Findly-x.y.z.zip`，解壓縮後把 **Findly** 拖進「應用程式」。這是自簽的 App（沒有經過 Apple 公證），第一次開啟要按右鍵 → 打開，或執行 `xattr -dr com.apple.quarantine /Applications/Findly.app`。用 Homebrew 安裝會自動處理這一步。
+
+Findly 要瀏覽整個磁碟，需要「完整磁碟取用權」。到「系統設定 › 隱私權與安全性 › 完整磁碟取用權」打開 Findly；設定裡的「權限」頁會顯示目前狀態。沒有開啟時，桌面、文件、下載項目與外接磁碟會打不開，抽屜會直接說明原因並附上前往設定的按鈕。需要 macOS 14 以上。
 
 ## 使用
 
-| 動作 | 觸發方式 |
+| 動作 | 方式 |
 |---|---|
-| 召喚／收起 | menu bar icon → Toggle Drawer，或 ⌘\` |
-| 召喚到某一邊 | menu bar icon → Snap，或 ⌃⌥ + 方向鍵 |
-| 收起 | 切換到其他 app（自動），或快捷鍵再按一次 |
-| 排序 | 點欄位標題；或用 Group by Kind 分區 |
-| 進資料夾 / 回上層 | 雙擊資料夾 / 左上 Back |
-| 對檔案操作 | 右鍵：開啟 / Quick Look / 在 Finder 顯示 / 改名 / 移到垃圾桶 |
-| 改寬高 | 拖視窗內側邊界，會記住 |
+| 打開／收起抽屜 | `` ⌃` ``，或點選單列圖示（按右鍵開選單） |
+| 從某一邊打開 | `⌃⌥` + 方向鍵 |
+| 收起 | 切到其他 App（可在設定關掉），或再按一次快速鍵 |
+| 打開檔案或檔案夾 | 連按兩下、`⌘↓`、`⌘O` |
+| 上一頁／下一頁／上層 | `⌘[`、`⌘]`、`⌘↑`，或滑鼠側鍵 |
+| 重新命名 | `Return`（只選取主檔名，不含副檔名） |
+| 丟到垃圾桶 | `⌘⌫` |
+| 快速查看 | 空白鍵；`⌥` + 空白鍵全螢幕；可一次選多個 |
+| 搜尋 | `⌘F`；可選「這個檔案夾」或「包含子檔案夾」（用 Spotlight） |
+| 顯示隱藏檔案 | `⌘⇧.` |
+| 調整大小 | 拖曳抽屜內側邊緣；寬度與高度分開記住，最多到螢幕的 85% |
 
-## 技術棧
+快速鍵都能在「設定 › 快速鍵」更改。錄製時會擋掉和其他動作或 macOS 重複的組合；如果另一個 App 已經占用某組快速鍵，設定頁會標出來。VS Code 用 `` ⌃` `` 開終端機，所以 VS Code 在最前面時，這組快速鍵會被 VS Code 接走。
 
-- **Swift 6** / **AppKit**（純 system framework，無第三方依賴）
-- **`NSPanel`** 自繪抽屜，`collectionBehavior` 跨所有 Space
-- **SwiftUI** 側邊欄——用 `List` 搭配 `.listStyle(.sidebar)`，透過 `NSHostingView` 承載——與 AppKit 並用
-- **`NSOutlineView`** 撐起檔案列表（view-based，多欄位 + sortable headers + group rows）
-- **`UniformTypeIdentifiers`** 依 `UTType` 分類；**Quick Look** 預覽
-- **Carbon `RegisterEventHotKey`** 全域快捷鍵（不需新增權限）
-- **Swift Package Manager** + shell script 打 `.app` bundle + 穩定自簽 codesign
-- **`CGContext` + `sips` + `iconutil`** 程式化生成 icon
+## 它做什麼
 
-## 專案結構
+- **跟 Finder 同一份側邊欄**：喜好項目照 Finder 的順序、iCloud Drive、位置（外接與網路磁碟可直接退出，插拔時即時更新）、標籤（點了列出所有帶這個標籤的檔案，預設收起）。要顯示哪些項目，在「設定 › 側邊欄」逐項開關，跟 Finder 一樣。
+- **Finder 的列表檢視**：名稱、大小、種類、修改日期四欄，點欄位標題排序，可依種類分組，檔案夾可就地展開。字級跟著 Finder「顯示方式選項」的設定。
+- **檔案會自己更新**：用 FSEvents 監看目前與已展開的檔案夾，重新整理時保留展開狀態、選取與捲動位置。
+- **拖放**：把檔案拖到其他 App；也能拖進抽屜、拖到檔案夾列、側邊欄或下方路徑列。同一顆磁碟搬移、跨磁碟拷貝，跟 Finder 一樣；名稱重複時自動加編號，不會覆蓋。進度顯示在列表上方。
+- **出現在每個桌面空間**：抽屜是 Findly 自己的視窗，全螢幕 App 上面也叫得出來；每次都從滑鼠所在的螢幕滑出。
+- **六種語言**：繁體中文、English、日本語、한국어、Español、Português (Brasil)。
 
-```
-Findly-app/
-├── Package.swift
-├── Sources/Findly/
-│   ├── main.swift              # NSApplication entry
-│   ├── AppDelegate.swift       # menu bar + 召喚路由（+ debug 視窗模式）
-│   ├── DrawerController.swift  # 滑入/滑出、auto-park、拖曳調厚度、動畫
-│   ├── DrawerWindow.swift      # 自繪 NSPanel，跨所有 Space
-│   ├── FileBrowserView.swift   # Finder 列表檢視（側邊欄 + 多欄位 + 分組 + 右鍵）
-│   ├── FullDiskAccess.swift    # 偵測 FDA 並引導
-│   ├── HotkeyManager.swift     # Carbon 全域快捷鍵
-│   ├── ScreenEdge.swift        # 邊緣 frame 計算
-│   └── Defaults.swift          # UserDefaults wrapper
-├── Resources/                  # Info.plist / AppIcon.icns / icon-1024.png
-├── Scripts/                    # build-app.sh / make-icon.{sh,swift}
-└── Tests/FindlyTests/
+<table>
+  <tr>
+    <td width="50%"><img src="docs/readme-shots/zh-Hant-settings-shortcuts-dark.png" alt="設定 › 快速鍵：每個動作的快速鍵，可重新錄製或重設"></td>
+    <td width="50%"><img src="docs/readme-shots/zh-Hant-drawer-light.png" alt="淺色模式下的 Findly 抽屜"></td>
+  </tr>
+</table>
+
+## 從原始碼建置
+
+```sh
+brew install xcodegen
+./scripts/build-app.sh --install      # 打包 dist/Findly-<版本>.zip 並裝到「應用程式」
 ```
 
-## Debug 旗標
+簽章身分放在 `Config/Signing.local.xcconfig`（`CODE_SIGN_IDENTITY = …`）。用固定的身分，重建後完整磁碟取用權才不會失效。
 
-| 環境變數 | 作用 |
-|---|---|
-| `FINDLY_DEBUG_AUTOSHOW=1` | 啟動後自動滑出抽屜 |
-| `FINDLY_DEBUG_NOPARK=1` | 停用 auto-park（測試時把抽屜釘住） |
-| `FINDLY_DEBUG_WINDOW=1` | 把瀏覽器放進普通視窗，繞開抽屜/FDA，方便檢視截圖 |
-| `FINDLY_DEBUG_PATH=<path>` | 指定 debug 視窗開啟的路徑 |
+```sh
+xcodebuild test -project Findly.xcodeproj -scheme Findly   # 單元測試
+./scripts/selftest.sh [項目]                                 # 端對端自我測試，在假的檔案夾裡執行
+./scripts/screenshots.sh [語言] [light|dark]                 # README 與官網用的截圖
+```
 
-## 已知限制
+```
+Findly/
+├── App/          進入點、選單列、偏好設定、更新檢查、自我測試
+├── Drawer/       抽屜視窗、滑入滑出、螢幕邊緣幾何
+├── Browser/      瀏覽器：檔案列表、側邊欄、路徑列、提示列
+├── Model/        檔案項目、讀取檔案夾、排序與分組、上一頁／下一頁、FSEvents 監看
+├── Services/     檔案操作、Finder 側邊欄、Spotlight、完整磁碟取用權
+├── Hotkeys/      全域快速鍵（Carbon RegisterEventHotKey）
+├── Settings/     設定卡
+└── DesignSystem/ 字級、間距、顏色、重點色、Reicon 圖示
+scripts/          build-app.sh、selftest.sh、screenshots.sh、update-cask.py、icon/、reicon/、l10n/
+```
 
-- 只在 macOS 14+ 測過，主力測試環境 macOS 26（Tahoe）
-- 採穩定自簽身分（仍未經 Apple 公證）；下載的副本會被 Gatekeeper 擋，直到清掉 quarantine 屬性為止（見「安裝」）
-- 檔案瀏覽器是 Finder 的「近似」，不是真 Finder——tag、標籤頁、欄位檢視等尚未實作
-- 首次啟動若還沒授權 FDA，系統設定視窗會搶走焦點、令自動彈出的抽屜立刻 park
+## 設計筆記
 
-## 這個專案怎麼做出來的
+最早的 Findly 想直接操控真正的 Finder 視窗當抽屜：用 AppleScript 開視窗、用 Accessibility API 搬位置。這條路跑得動，但每個桌面空間都要塞一個 Finder 視窗，還要動用私有 API，複雜度全落在「借用別人的視窗」。後來改成自己的視窗，一行 `collectionBehavior` 就出現在每個桌面空間。
 
-整個專案是用 [Claude Code](https://claude.com/claude-code) 在連續幾段對話裡邊聊邊長出來的——包含上面「驅動真 Finder → 自繪抽屜」那次架構大轉向，以及把瀏覽器從 `NSBrowser` 欄位檢視換成 `NSOutlineView` 列表檢視的反覆迭代。
+1.0 是重寫：檔案列表與側邊欄都改用 AppKit（`NSOutlineView`），讀取檔案夾移到背景執行緒，抽屜改成每次從目前螢幕滑出並限制尺寸，預設快速鍵從 `` ⌘` `` 改成 `` ⌃` ``，讓出 macOS 切換同一 App 視窗的快速鍵。設定卡、設計規範、六種語言與更新檢查，都和 [Configgy](https://configgy.rocavence.com)、[Gamely](https://gamely.rocavence.com)、[Flione](https://flione.rocavence.com) 共用。
 
-## 授權
-
-MIT
+<sub>以 MIT 授權 · 個人工具，原樣分享，不提供任何保證 · 用 Claude Code 打造。</sub>

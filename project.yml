@@ -1,0 +1,81 @@
+name: Findly
+options:
+  bundleIdPrefix: com.findly
+  developmentLanguage: en
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # 版本號只改這裡
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "17"
+  configs:
+    Release:
+      DEAD_CODE_STRIPPING: YES
+      STRIP_INSTALLED_PRODUCT: YES
+      # 一般 build 也要剝掉符號（STRIP_INSTALLED_PRODUCT 只在 install 時生效），執行檔小約一半
+      DEPLOYMENT_POSTPROCESSING: YES
+      # UI App 沒有吃重運算，用體積優先的最佳化
+      SWIFT_OPTIMIZATION_LEVEL: -Osize
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+schemes:
+  Findly:
+    build:
+      targets:
+        Findly: all
+        FindlyTests: [test]
+    test:
+      targets:
+        - FindlyTests
+targets:
+  Findly:
+    type: application
+    platform: macOS
+    sources:
+      - Findly
+    # 簽章設定在 Config/Signing.xcconfig；本機憑證放 Signing.local.xcconfig（不進版控）。
+    # 完整磁碟取用權綁在簽章身分上，正式版要用固定的自簽憑證（Findly Self-Signed），重建後才不用重新授權。
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.findly.app
+        PRODUCT_NAME: Findly
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Findly
+        INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_KEY_NSDesktopFolderUsageDescription: Findly shows your Desktop folder in the drawer.
+        INFOPLIST_KEY_NSDocumentsFolderUsageDescription: Findly shows your Documents folder in the drawer.
+        INFOPLIST_KEY_NSDownloadsFolderUsageDescription: Findly shows your Downloads folder in the drawer.
+        INFOPLIST_KEY_NSRemovableVolumesUsageDescription: Findly shows the contents of external drives in the drawer.
+        INFOPLIST_KEY_NSNetworkVolumesUsageDescription: Findly shows the contents of network drives in the drawer.
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+      configs:
+        # 除錯版用自己的 bundle ID，自我測試不會動到正式版
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.findly.app.debug
+        # 自簽憑證沒有 Team ID，除錯版開 hardened runtime 會載不進 debug dylib
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
+  FindlyTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - FindlyTests
+    dependencies:
+      - target: Findly
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Findly.app/Contents/MacOS/Findly

@@ -1,0 +1,211 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSDesktopFolderUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly shows your Desktop folder in the drawer."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly 會在抽屜裡顯示你的桌面檔案夾。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly はデスクトップフォルダをドロワーに表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly가 서랍에 데스크탑 폴더를 표시합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly muestra tu carpeta Escritorio en el cajón."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Findly mostra sua pasta Mesa na gaveta."
+          }
+        }
+      }
+    },
+    "NSDocumentsFolderUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly shows your Documents folder in the drawer."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly 會在抽屜裡顯示你的文件檔案夾。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly は書類フォルダをドロワーに表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly가 서랍에 문서 폴더를 표시합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly muestra tu carpeta Documentos en el cajón."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Findly mostra sua pasta Documentos na gaveta."
+          }
+        }
+      }
+    },
+    "NSDownloadsFolderUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly shows your Downloads folder in the drawer."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly 會在抽屜裡顯示你的下載項目檔案夾。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly はダウンロードフォルダをドロワーに表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly가 서랍에 다운로드 폴더를 표시합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly muestra tu carpeta Descargas en el cajón."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Findly mostra sua pasta Transferências na gaveta."
+          }
+        }
+      }
+    },
+    "NSRemovableVolumesUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly shows the contents of external drives in the drawer."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly 會在抽屜裡顯示外接磁碟的內容。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly は外部ドライブの内容をドロワーに表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly가 서랍에 외장 드라이브의 내용을 표시합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly muestra el contenido de los discos externos en el cajón."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Findly mostra o conteúdo de discos externos na gaveta."
+          }
+        }
+      }
+    },
+    "NSNetworkVolumesUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly shows the contents of network drives in the drawer."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly 會在抽屜裡顯示網路磁碟的內容。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly はネットワークドライブの内容をドロワーに表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly가 서랍에 네트워크 드라이브의 내용을 표시합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findly muestra el contenido de las unidades de red en el cajón."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Findly mostra o conteúdo de unidades de rede na gaveta."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

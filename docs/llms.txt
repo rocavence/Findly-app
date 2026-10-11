@@ -1,6 +1,6 @@
 # Findly
 
-> Findly is a free, open-source macOS menu bar utility. Press ⌘` to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It is its own window — not the real Finder — so it appears on every Space with a single line of collectionBehavior, with no Apple Events, Accessibility, or private SPI.
+> Findly is a free, open-source macOS menu bar utility. Press ⌃` to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It is its own window — not the real Finder — so it appears on every Space with a single line of collectionBehavior, with no Apple Events, Accessibility, or private SPI.
 
 - Platform: macOS 14 (Sonoma) or later
 - Price: Free, open source (MIT license)
@@ -13,7 +13,7 @@
 
 Findly is a quick file drawer you can summon over anything and dismiss just as fast:
 
-- Press ⌘` to slide the drawer in/out; use ⌃⌥ + arrow keys to summon it to the top, bottom, left, or right edge.
+- Press ⌃` to slide the drawer in/out; use ⌃⌥ + arrow keys to summon it to the top, bottom, left, or right edge.
 - It appears on whichever screen the mouse is on.
 - Switch to another app and the drawer auto-parks off-screen; press the hotkey again to slide it back.
 - Drag the drawer's inner edge to resize width/height — it remembers for next time.
@@ -21,10 +21,13 @@ Findly is a quick file drawer you can summon over anything and dismiss just as f
 
 ## Inside the drawer
 
-A macOS 26 "Liquid Glass" look: a translucent window with the sidebar and file list as two rounded inset cards, a back/forward + search toolbar, drag-and-drop, and Traditional Chinese localization.
-
-- Sidebar: a native SwiftUI sidebar (List with .listStyle(.sidebar) hosted via NSHostingView) that mirrors Finder's favorites (reads Finder's shared file list; needs Full Disk Access) and supports drag-to-reorder.
-- File list: an NSOutlineView-backed Finder list view with multiple columns (Name / Size / Kind / Date Modified), click-to-sort headers (natural numeric sort), Group by Kind, double-click to enter folders, multi-select, right-click menu (Open / Quick Look / Reveal in Finder / Rename / Move to Trash), spacebar Quick Look, and Enter to open.
+- Sidebar: Finder's own sidebar, read the way Finder shows it: Favorites in Finder's order, iCloud Drive, Locations (eject buttons; updates on mount and unmount) and Tags (click to list tagged files via Spotlight; folded at first). Settings › Sidebar turns items on and off, or "Same as Finder" follows Finder's own sidebar settings, re-read each time the drawer opens.
+- Menu bar icon: click toggles the drawer; right-click (or Control-click) opens the menu.
+- File list: an AppKit NSOutlineView list view with Name / Size / Kind / Date Modified, click-to-sort headers, Group by Kind, folders that expand in place, and Finder's shortcuts: Return renames, ⌘↓ / ⌘O open, ⌘⌫ trashes, ⌘[ ⌘] ⌘↑ navigate, ⌘F searches (this folder or subfolders), ⌘⇧. shows hidden files, Space / ⌥Space Quick Look.
+- Live updates via FSEvents; refreshes keep expansion, selection and scroll position.
+- Drag and drop in and out (list, folder rows, sidebar, path bar); moves within a volume, copies across, never overwrites.
+- Settings: language, appearance, accent, launch at login, default edge, auto-park, mouse side buttons, shortcut recorder with conflict checks, Full Disk Access status, update check.
+- Six languages: Traditional Chinese, English, Japanese, Korean, Spanish, Brazilian Portuguese.
 
 ## Why its own window
 
@@ -32,10 +35,11 @@ The original direction was to avoid rebuilding a file browser UI by driving a re
 
 ## Install notes
 
+- Homebrew: `brew install --cask rocavence/tap/findly`
 - Self-signed (not Apple-notarized). On first launch, open via right-click → Open, or run `xattr -dr com.apple.quarantine /Applications/Findly.app`.
-- Full Disk Access: the drawer browses the whole file system and the sidebar mirrors Finder favorites. Grant it in System Settings → Privacy & Security → Full Disk Access. Without it, TCC-protected folders (Desktop, Documents, Downloads, CloudStorage/Dropbox) list as empty and the sidebar falls back to a built-in list.
+- Full Disk Access: the drawer browses the whole file system and the sidebar mirrors Finder favorites. Grant it in System Settings → Privacy & Security → Full Disk Access. Without it, TCC-protected folders (Desktop, Documents, Downloads, CloudStorage/Dropbox) can't be opened; the drawer explains why and links to the settings pane.
 - Tested on macOS 14+, primarily macOS 26 (Tahoe).
-- Tech stack: Swift 6, AppKit, NSPanel, SwiftUI sidebar, NSOutlineView, UniformTypeIdentifiers, Quick Look, Carbon RegisterEventHotKey.
+- Tech stack: Swift 6, AppKit (NSPanel, NSOutlineView), SwiftUI settings, FSEvents, NSMetadataQuery, Quick Look, Carbon RegisterEventHotKey, XcodeGen.
 
 ## Links
 

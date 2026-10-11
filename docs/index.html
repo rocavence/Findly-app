@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0a0b0d">
 <title>Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜</title>
-<meta name="description" content="Findly 是一個常駐選單列的 macOS 小工具：用全域快捷鍵 ⌘` 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜，切到別的 app 就自動滑回邊外。支援 macOS 14+、多螢幕、全域快捷鍵、開源免費。">
+<meta name="description" content="Findly 是一個常駐選單列的 macOS 小工具：用全域快捷鍵 ⌃` 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜，切到別的 app 就自動滑回邊外。支援 macOS 14+、多螢幕、全域快捷鍵、開源免費。">
 <meta name="keywords" content="Findly, macOS, 檔案抽屜, file drawer, Finder, 選單列工具, menu bar app, slide-out drawer, NSOutlineView, 全域快捷鍵, global hotkey, macOS file browser, quick file access">
 <meta name="author" content="rocavence">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -21,7 +21,7 @@
 <meta property="og:site_name" content="Findly">
 <meta property="og:url" content="https://findly.rocavence.com/">
 <meta property="og:title" content="Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜">
-<meta property="og:description" content="⌘` 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜，切到別的 app 就自動滑回邊外。免費、開源、常駐選單列。">
+<meta property="og:description" content="⌃` 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜，切到別的 app 就自動滑回邊外。免費、開源、常駐選單列。">
 <meta property="og:image" content="https://findly.rocavence.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -31,7 +31,7 @@
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Findly — 從螢幕邊緣一鍵滑出的 macOS 檔案抽屜">
-<meta name="twitter:description" content="⌘` 從任一螢幕邊緣滑出 Finder 風格的檔案抽屜，切到別的 app 自動滑回。免費開源的選單列小工具。">
+<meta name="twitter:description" content="⌃` 從任一螢幕邊緣滑出 Finder 風格的檔案抽屜，切到別的 app 自動滑回。免費開源的選單列小工具。">
 <meta name="twitter:image" content="https://findly.rocavence.com/og.png">
 <!-- Structured data: SoftwareApplication -->
 <script type="application/ld+json">
@@ -42,8 +42,8 @@
   "applicationCategory": "UtilitiesApplication",
   "applicationSubCategory": "Menu Bar Utility",
   "operatingSystem": "macOS 14.0 or later",
-  "softwareVersion": "0.5.1",
-  "description": "Findly is a free, open-source macOS menu bar utility. Press ⌘` to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It's its own window — no Apple Events, Accessibility, or private SPI — so it appears on every Space with a single line of collectionBehavior.",
+  "softwareVersion": "1.0.0",
+  "description": "Findly is a free, open-source macOS menu bar utility. Press ⌃` to slide a Finder-style file drawer in from any screen edge; switch to another app and it automatically parks off-screen. It's its own window — no Apple Events, Accessibility, or private SPI — so it appears on every Space with a single line of collectionBehavior.",
   "url": "https://findly.rocavence.com/",
   "downloadUrl": "https://github.com/rocavence/Findly-app/releases/latest",
   "softwareHelp": "https://github.com/rocavence/Findly-app",
@@ -53,7 +53,7 @@
   "author": { "@type": "Person", "name": "rocavence", "url": "https://github.com/rocavence" },
   "featureList": [
     "Slide a file drawer in from any of the four screen edges",
-    "Summon with global hotkeys (⌘` toggle, ⌃⌥ + arrows for a specific edge)",
+    "Summon with global hotkeys (⌃` toggle, ⌃⌥ + arrows for a specific edge)",
     "Auto-parks off-screen when you switch to another app",
     "Finder-style list view via NSOutlineView with sortable multi-column headers and Group by Kind",
     "Native SwiftUI sidebar that mirrors Finder favorites",
@@ -71,7 +71,7 @@
     {
       "@type": "Question",
       "name": "What does Findly do?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Findly is a macOS menu bar utility that slides a Finder-style file drawer in from any screen edge when you press a global hotkey (⌘`). It's a quick file browser you can summon over anything; switch to another app and it automatically slides off-screen." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Findly is a macOS menu bar utility that slides a Finder-style file drawer in from any screen edge when you press a global hotkey (⌃`). It's a quick file browser you can summon over anything; switch to another app and it automatically slides off-screen." }
     },
     {
       "@type": "Question",
@@ -81,7 +81,7 @@
     {
       "@type": "Question",
       "name": "How do I summon the drawer?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Press ⌘` to toggle it, or use ⌃⌥ with an arrow key to summon it to the top, bottom, left, or right edge. It appears on whichever screen the mouse is on. The menu bar icon also has Toggle and Snap commands." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Press ⌃` to toggle it, or use ⌃⌥ with an arrow key to summon it to the top, bottom, left, or right edge. It appears on whichever screen the mouse is on. The menu bar icon also has Toggle and Snap commands." }
     },
     {
       "@type": "Question",
@@ -150,8 +150,9 @@
   .screen{position:relative;aspect-ratio:16/10;border-radius:18px;background:linear-gradient(160deg,#16181d,#0b0c0e);border:1px solid rgba(255,255,255,.08);box-shadow:var(--shadow);overflow:hidden}
   .menubar{position:absolute;top:0;left:0;right:0;height:26px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;font-size:12px;color:rgba(255,255,255,.6);z-index:3}
   .desk-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.22);font-size:14px;letter-spacing:.04em;text-align:center;padding:0 20px}
-  .drawer{position:absolute;top:26px;bottom:0;right:0;width:60%;max-width:430px;background:rgba(28,30,36,.86);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.1);transform:translateX(103%);transition:transform .5s cubic-bezier(.5,.1,.2,1);display:flex;flex-direction:column;z-index:2;box-shadow:-30px 0 60px -30px rgba(0,0,0,.7)}
+  .drawer{position:absolute;top:26px;bottom:0;right:0;width:auto;background:transparent;transform:translateX(103%);transition:transform .5s cubic-bezier(.5,.1,.2,1);display:flex;flex-direction:column;z-index:2;box-shadow:-30px 0 60px -30px rgba(0,0,0,.7)}
   .screen.on .drawer{transform:translateX(0)}
+  .drawer .shot{display:block;height:100%;width:auto;max-width:none}
   .dtop{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.07)}
   .dtop .nav-dots{display:flex;gap:8px;color:#7d808a;font-size:13px}
   .dtop .search{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;font-size:11px;color:#8a8d96;padding:4px 9px}
@@ -224,7 +225,7 @@
     section.block{padding:60px 0}
     .hero{padding:56px 0 20px}
     .nav-link.hide-sm{display:none}
-    .drawer{width:78%}
+    .drawer{width:auto}
   }
 
   /* 安裝步驟（給第一次用終端機的人） */
@@ -264,12 +265,12 @@
   <div class="wrap">
     <img class="appicon" src="icon.png" alt="Findly app icon">
     <h1 data-i="hero.h1">你的檔案抽屜，<br><span class="hl">從螢幕邊緣一鍵滑出</span></h1>
-    <p class="sub" data-i="hero.sub">Findly 是常駐選單列的 macOS 小工具：按 <kbd>⌘`</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。</p>
+    <p class="sub" data-i="hero.sub">Findly 是常駐選單列的 macOS 小工具：按 <kbd>⌃`</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。</p>
     <div class="cta">
       <a class="btn btn-primary" href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener"><span data-i="hero.download">下載 Findly</span></a>
       <a class="btn btn-ghost" href="https://github.com/rocavence/Findly-app" target="_blank" rel="noopener" data-i="hero.source">原始碼 · MIT</a>
     </div>
-    <p class="meta"><b>macOS 14+</b> · <span data-i="hero.meta">自簽免費 App · v0.5.1</span></p>
+    <p class="meta"><b>macOS 14+</b> · <span data-i="hero.meta">自簽免費 App · v1.0.0</span></p>
 
     <!-- INTERACTIVE DEMO -->
     <div class="demo-stage">
@@ -277,28 +278,11 @@
         <div class="menubar"><span>🔍 Findly</span><span class="clock">22:41</span></div>
         <div class="desk-hint" data-i="demo.desk">你正在做別的事的桌面…</div>
         <div class="drawer">
-          <div class="dtop"><span class="nav-dots">‹ ›</span><span class="search" data-i="demo.search">搜尋</span></div>
-          <div class="dbody">
-            <div class="side">
-              <div class="row sel"><i>⭐</i><span data-i="demo.s1">最愛</span></div>
-              <div class="row"><i>🗂️</i><span data-i="demo.s2">桌面</span></div>
-              <div class="row"><i>📄</i><span data-i="demo.s3">文件</span></div>
-              <div class="row"><i>⬇️</i><span data-i="demo.s4">下載</span></div>
-              <div class="row"><i>☁️</i><span>Dropbox</span></div>
-            </div>
-            <div class="list">
-              <div class="frow"><span class="nm"><i>📁</i>Projects</span><span class="sz">--</span></div>
-              <div class="frow sel"><span class="nm"><i>📁</i>Findly-app</span><span class="sz">--</span></div>
-              <div class="frow"><span class="nm"><i>🖼️</i>icon-1024.png</span><span class="sz">407 KB</span></div>
-              <div class="frow"><span class="nm"><i>📄</i>README.md</span><span class="sz">7 KB</span></div>
-              <div class="frow"><span class="nm"><i>📄</i>Package.swift</span><span class="sz">400 B</span></div>
-              <div class="frow"><span class="nm"><i>🗜️</i>Findly-0.5.1.zip</span><span class="sz">820 KB</span></div>
-            </div>
-          </div>
+          <img class="shot" id="drawerShot" src="shots/drawer-zh-dark.png" alt="Findly 抽屜的實際畫面">
         </div>
       </div>
       <div class="demo-ctrl">
-        <label class="toggle" id="toggle"><span class="switch"></span><span data-i="demo.toggle">召喚抽屜 ⌘`</span></label>
+        <label class="toggle" id="toggle"><span class="switch"></span><span data-i="demo.toggle">召喚抽屜 ⌃`</span></label>
         <span class="demo-hint" data-i="demo.hint">← 撥一下，看抽屜從右邊滑進來</span>
       </div>
     </div>
@@ -312,7 +296,7 @@
     <p class="lead" data-i="how.lead">最初想用 Accessibility 去驅動「真的 Finder」當抽屜，複雜度爆炸。最後換成自己的視窗——簡單非常多。</p>
     <div class="steps" style="text-align:left">
       <div class="step"><div class="num">1</div><h3 data-i="how.s1h">自己的視窗，不碰真 Finder</h3><p data-i="how.s1p">用自己的 <code>NSPanel</code>，一行 <code>collectionBehavior</code> 就出現在每個 Space——沒有 Apple Events、Accessibility 或私有 SPI。</p></div>
-      <div class="step"><div class="num">2</div><h3 data-i="how.s2h">從任一邊召喚</h3><p data-i="how.s2p">選單列或全域快捷鍵 <code>⌘`</code> ／ <code>⌃⌥</code>+方向鍵；滑鼠在哪個螢幕，就召喚到那個螢幕。</p></div>
+      <div class="step"><div class="num">2</div><h3 data-i="how.s2h">從任一邊召喚</h3><p data-i="how.s2p">選單列或全域快捷鍵 <code>⌃`</code> ／ <code>⌃⌥</code>+方向鍵；滑鼠在哪個螢幕，就召喚到那個螢幕。</p></div>
       <div class="step"><div class="num">3</div><h3 data-i="how.s3h">自動滑回邊外</h3><p data-i="how.s3p">點到別的 app 就自動 park 到螢幕外，再按一次滑回來。拖內側邊界調寬高，下次召喚記得。</p></div>
     </div>
   </div>
@@ -325,11 +309,11 @@
     <p class="lead" data-i="feat.lead">用 NSOutlineView 做到很接近 Finder 列表檢視，再加上抽屜該有的順手。</p>
     <div class="grid" style="text-align:left">
       <div class="card"><span class="emoji">🪟</span><h3 data-i="feat.c1h">Liquid Glass 外觀</h3><p data-i="feat.c1p">macOS 26 半透明視窗，側欄與檔案列表做成兩張圓角內嵌卡片。</p></div>
-      <div class="card"><span class="emoji">⭐</span><h3 data-i="feat.c2h">鏡像 Finder 最愛</h3><p data-i="feat.c2p">原生 SwiftUI 側欄讀取 Finder 的共享清單，還能拖曳重新排序。</p></div>
-      <div class="card"><span class="emoji">🗂️</span><h3 data-i="feat.c3h">真・Finder 列表</h3><p data-i="feat.c3p">NSOutlineView 撐起多欄位、點標題排序、Group by Kind、空白鍵 Quick Look。</p></div>
-      <div class="card"><span class="emoji">⌨️</span><h3 data-i="feat.c4h">全域快捷鍵</h3><p data-i="feat.c4p">Carbon 註冊、不用多要權限；⌘` 召喚、⌃⌥+方向鍵指定邊。</p></div>
+      <div class="card"><span class="emoji">⭐</span><h3 data-i="feat.c2h">跟 Finder 同一份側邊欄</h3><p data-i="feat.c2p">喜好項目照 Finder 的順序，加上 iCloud、外接磁碟（可直接退出）和標籤。要顯示哪些可以逐項開關，或直接打開「和 Finder 相同」，Finder 怎麼設這裡就怎麼顯示。</p></div>
+      <div class="card"><span class="emoji">🗂️</span><h3 data-i="feat.c3h">真・Finder 列表</h3><p data-i="feat.c3p">四欄排序、依種類分組、檔案夾就地展開。Return 改名、⌘⌫ 丟垃圾桶、空白鍵快速查看，快速鍵跟 Finder 一樣。</p></div>
+      <div class="card"><span class="emoji">⌨️</span><h3 data-i="feat.c4h">全域快捷鍵</h3><p data-i="feat.c4p">⌃` 叫出來，⌃⌥+方向鍵指定從哪一邊出來。點選單列圖示也行，按右鍵開選單。不用多給任何權限。</p></div>
       <div class="card"><span class="emoji">🖥️</span><h3 data-i="feat.c5h">出現在每個 Space</h3><p data-i="feat.c5p">一行 collectionBehavior，跨所有 Space 與全螢幕 app 都召喚得出來。</p></div>
-      <div class="card"><span class="emoji">📐</span><h3 data-i="feat.c6h">記住你的尺寸</h3><p data-i="feat.c6p">拖抽屜內側邊界調整寬高，下次召喚就是你上次的大小。</p></div>
+      <div class="card"><span class="emoji">📐</span><h3 data-i="feat.c6h">拖進拖出都行</h3><p data-i="feat.c6p">檔案直接拖到別的 App，也能拖進抽屜、檔案夾或路徑列。名稱重複會自動加編號，不會蓋掉原檔。</p></div>
     </div>
   </div>
 </section>
@@ -350,6 +334,7 @@
       <button class="copy-btn" type="button" data-target="installCmd" data-i="inst.copy">複製</button>
       <pre><span class="cmd" id="installCmd">xattr -dr com.apple.quarantine /Applications/Findly.app && open /Applications/Findly.app</span></pre>
     </div>
+    <p class="why" data-i="inst.brew"><b>用 Homebrew？</b>一行裝好，也不用處理上面的隔離標記：<code>brew install --cask rocavence/tap/findly</code></p>
     <p class="why" data-i="inst.why"><b>蛤？這是在幹嘛？</b>Findly 是免費的自簽 app，沒有經過 Apple 公證。我也不是靠開發 App 維生，純粹是做自己覺得好用、好看的小東西，繳不起 Apple 每年的開發者規費⋯⋯所以 macOS 會擋下第一次開啟。這行指令只是拿掉下載時被加上的「隔離」標記，再幫你打開 Findly，不會改動其他東西，只需要做一次。</p>
     <p class="fda"><b data-i="inst.fdah">完整磁碟取用權限：</b><span data-i="inst.fdap">抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。</span></p>
     <div class="cta" style="margin-top:30px">
@@ -389,26 +374,26 @@ const I18N = {
   zh:{
     "nav.how":"運作原理","nav.features":"功能",
     "hero.h1":'你的檔案抽屜，<br><span class="hl">從螢幕邊緣一鍵滑出</span>',
-    "hero.sub":'Findly 是常駐選單列的 macOS 小工具：按 <kbd>⌘`</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。',
-    "hero.download":"下載 Findly","hero.source":"原始碼 · MIT","hero.meta":"自簽免費 App · v0.5.1",
+    "hero.sub":'Findly 是常駐選單列的 macOS 小工具：按 <kbd>⌃`</kbd> 從任一螢幕邊緣滑出一個 Finder 風格的檔案抽屜；切到別的 app，它就自動滑回邊外。',
+    "hero.download":"下載 Findly","hero.source":"原始碼 · MIT","hero.meta":"自簽免費 App · v1.0.0",
     "demo.desk":"你正在做別的事的桌面…","demo.search":"搜尋",
     "demo.s1":"最愛","demo.s2":"桌面","demo.s3":"文件","demo.s4":"下載",
-    "demo.toggle":"召喚抽屜 ⌘`","demo.hint":"← 撥一下，看抽屜從右邊滑進來",
+    "demo.toggle":"召喚抽屜 ⌃`","demo.hint":"← 撥一下，看抽屜從右邊滑進來",
     "how.eyebrow":"運作原理","how.h2":"乾淨的架構，剛好的距離",
     "how.lead":"最初想用 Accessibility 去驅動「真的 Finder」當抽屜，複雜度爆炸。最後換成自己的視窗——簡單非常多。",
     "how.s1h":"自己的視窗，不碰真 Finder","how.s1p":'用自己的 <code>NSPanel</code>，一行 <code>collectionBehavior</code> 就出現在每個 Space——沒有 Apple Events、Accessibility 或私有 SPI。',
-    "how.s2h":"從任一邊召喚","how.s2p":'選單列或全域快捷鍵 <code>⌘`</code> ／ <code>⌃⌥</code>+方向鍵；滑鼠在哪個螢幕，就召喚到那個螢幕。',
+    "how.s2h":"從任一邊召喚","how.s2p":'選單列或全域快捷鍵 <code>⌃`</code> ／ <code>⌃⌥</code>+方向鍵；滑鼠在哪個螢幕，就召喚到那個螢幕。',
     "how.s3h":"自動滑回邊外","how.s3p":"點到別的 app 就自動 park 到螢幕外，再按一次滑回來。拖內側邊界調寬高，下次召喚記得。",
     "feat.eyebrow":"功能","feat.h2":"像 Finder，但隨叫隨到","feat.lead":"用 NSOutlineView 做到很接近 Finder 列表檢視，再加上抽屜該有的順手。",
     "feat.c1h":"Liquid Glass 外觀","feat.c1p":"macOS 26 半透明視窗，側欄與檔案列表做成兩張圓角內嵌卡片。",
-    "feat.c2h":"鏡像 Finder 最愛","feat.c2p":"原生 SwiftUI 側欄讀取 Finder 的共享清單，還能拖曳重新排序。",
-    "feat.c3h":"真・Finder 列表","feat.c3p":"NSOutlineView 撐起多欄位、點標題排序、Group by Kind、空白鍵 Quick Look。",
-    "feat.c4h":"全域快捷鍵","feat.c4p":"Carbon 註冊、不用多要權限；⌘` 召喚、⌃⌥+方向鍵指定邊。",
+    "feat.c2h":"跟 Finder 同一份側邊欄","feat.c2p":"喜好項目照 Finder 的順序，加上 iCloud、外接磁碟（可直接退出）和標籤。要顯示哪些可以逐項開關，或直接打開「和 Finder 相同」，Finder 怎麼設這裡就怎麼顯示。",
+    "feat.c3h":"真・Finder 列表","feat.c3p":"四欄排序、依種類分組、檔案夾就地展開。Return 改名、⌘⌫ 丟垃圾桶、空白鍵快速查看，快速鍵跟 Finder 一樣。",
+    "feat.c4h":"全域快捷鍵","feat.c4p":"⌃` 叫出來，⌃⌥+方向鍵指定從哪一邊出來。點選單列圖示也行，按右鍵開選單。不用多給任何權限。",
     "feat.c5h":"出現在每個 Space","feat.c5p":"一行 collectionBehavior，跨所有 Space 與全螢幕 app 都召喚得出來。",
-    "feat.c6h":"記住你的尺寸","feat.c6p":"拖抽屜內側邊界調整寬高，下次召喚就是你上次的大小。",
+    "feat.c6h":"拖進拖出都行","feat.c6p":"檔案直接拖到別的 App，也能拖進抽屜、檔案夾或路徑列。名稱重複會自動加編號，不會蓋掉原檔。",
     "inst.eyebrow":"安裝","inst.h2":"拖進「應用程式」就好",
     "inst.lead":"跟著四個步驟做，大約一分鐘。第三步會用到「終端機」，不用怕，複製貼上就好。","inst.s1":"按<a href=\"https://github.com/rocavence/Findly-app/releases/latest\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--ink);text-decoration:underline\">這裡的「下載最新版」</a>，從 GitHub 下載 <b>Findly</b> 的 <b>.zip</b> 檔。","inst.s2":"到「下載項目」資料夾雙擊 zip 解壓縮，把 <b>Findly</b> 拖進「應用程式」資料夾。","inst.s3":"打開「終端機」：按 <kbd>⌘</kbd> + <kbd>空白鍵</kbd> 叫出 Spotlight，輸入「<b>終端機</b>」（英文系統輸入 Terminal），按 <kbd>Return</kbd>。","inst.s4":"按下面黑色框右上角的「<b>複製</b>」，回到終端機按 <kbd>⌘</kbd> + <kbd>V</kbd> 貼上，再按 <kbd>Return</kbd>。Findly 就會打開，之後從「應用程式」直接開就好。","inst.copy":"複製","inst.why":"<b>蛤？這是在幹嘛？</b>Findly 是免費的自簽 app，沒有經過 Apple 公證。我也不是靠開發 App 維生，純粹是做自己覺得好用、好看的小東西，繳不起 Apple 每年的開發者規費⋯⋯所以 macOS 會擋下第一次開啟。這行指令只是拿掉下載時被加上的「隔離」標記，再幫你打開 Findly，不會改動其他東西，只需要做一次。",
-    "inst.cmt":"清除 quarantine 後直接打開","inst.btn":"下載最新版",
+    "inst.brew":"<b>用 Homebrew？</b>一行裝好，也不用處理上面的隔離標記：<code>brew install --cask rocavence/tap/findly</code>","inst.cmt":"清除 quarantine 後直接打開","inst.btn":"下載最新版",
     "inst.fdah":"完整磁碟取用權限：","inst.fdap":"抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。",
     "note.eyebrow":"寫在最後",
     "note.p1":"我想要一個「隨手叫出來、用完就消失」的檔案抽屜。試過去借真 Finder 的視窗，發現代價太大，最後決定自己刻一個——換來乾淨非常多的架構。",
@@ -418,26 +403,26 @@ const I18N = {
   en:{
     "nav.how":"How it works","nav.features":"Features",
     "hero.h1":'Your file drawer, <br><span class="hl">one keystroke from any edge</span>',
-    "hero.sub":'Findly is a macOS menu bar utility: press <kbd>⌘`</kbd> to slide a Finder-style file drawer in from any screen edge—switch to another app and it parks itself off-screen.',
-    "hero.download":"Download Findly","hero.source":"Source · MIT","hero.meta":"Free self-signed app · v0.5.1",
+    "hero.sub":'Findly is a macOS menu bar utility: press <kbd>⌃`</kbd> to slide a Finder-style file drawer in from any screen edge—switch to another app and it parks itself off-screen.',
+    "hero.download":"Download Findly","hero.source":"Source · MIT","hero.meta":"Free self-signed app · v1.0.0",
     "demo.desk":"your desktop, mid-task…","demo.search":"Search",
     "demo.s1":"Favorites","demo.s2":"Desktop","demo.s3":"Documents","demo.s4":"Downloads",
-    "demo.toggle":"Summon drawer ⌘`","demo.hint":"← flip it, watch the drawer slide in",
+    "demo.toggle":"Summon drawer ⌃`","demo.hint":"← flip it, watch the drawer slide in",
     "how.eyebrow":"How it works","how.h2":"A clean architecture, kept at arm's length",
     "how.lead":"The first idea was to drive the real Finder as the drawer via Accessibility—complexity exploded. Switching to its own window made everything far simpler.",
     "how.s1h":"Its own window, not the real Finder","how.s1p":'Its own <code>NSPanel</code>; one line of <code>collectionBehavior</code> puts it on every Space—no Apple Events, Accessibility, or private SPI.',
-    "how.s2h":"Summon from any edge","how.s2p":'Menu bar or global hotkeys <code>⌘`</code> / <code>⌃⌥</code> + arrows; it appears on whichever screen the mouse is on.',
+    "how.s2h":"Summon from any edge","how.s2p":'Menu bar or global hotkeys <code>⌃`</code> / <code>⌃⌥</code> + arrows; it appears on whichever screen the mouse is on.',
     "how.s3h":"Parks itself off-screen","how.s3p":"Switch to another app and it auto-parks off-screen; press the hotkey again to slide it back. Drag the inner edge to resize—it remembers.",
     "feat.eyebrow":"Features","feat.h2":"Like Finder, but on call","feat.lead":"NSOutlineView gets it close to Finder's list view, plus the conveniences a drawer should have.",
     "feat.c1h":"Liquid Glass look","feat.c1p":"A macOS 26 translucent window; sidebar and file list as two rounded inset cards.",
-    "feat.c2h":"Mirrors Finder favorites","feat.c2p":"A native SwiftUI sidebar reads Finder's shared list—and you can drag to reorder.",
-    "feat.c3h":"A real Finder-style list","feat.c3p":"NSOutlineView powers multi-column, sortable headers, Group by Kind, and spacebar Quick Look.",
-    "feat.c4h":"Global hotkeys","feat.c4p":"Registered via Carbon—no extra permissions. ⌘` to summon, ⌃⌥ + arrows to pick an edge.",
+    "feat.c2h":"Finder's own sidebar","feat.c2p":"Favorites in Finder's order, plus iCloud, external drives (eject right there) and tags. Turn items on and off one by one, or switch on “Same as Finder” and it follows Finder's own settings.",
+    "feat.c3h":"A real Finder-style list","feat.c3p":"Four sortable columns, grouping by kind, folders that expand in place. Return renames, ⌘⌫ trashes, Space opens Quick Look, just like Finder.",
+    "feat.c4h":"Global hotkeys","feat.c4p":"⌃` to summon, ⌃⌥ + arrows to pick an edge, or click the menu bar icon (right-click for the menu). No extra permissions.",
     "feat.c5h":"Appears on every Space","feat.c5p":"One line of collectionBehavior—summon it over any Space and full-screen apps.",
-    "feat.c6h":"Remembers your size","feat.c6p":"Drag the drawer's inner edge to resize; next time it's exactly how you left it.",
+    "feat.c6h":"Drag in, drag out","feat.c6p":"Drag files straight into another app, or into the drawer, a folder or the path bar. A clashing name gets a number instead of overwriting.",
     "inst.eyebrow":"Install","inst.h2":"Just drag it to Applications",
     "inst.lead":"Four steps, about a minute. Step 3 uses Terminal — don't worry, it's just copy and paste.","inst.s1":"Click <a href=\"https://github.com/rocavence/Findly-app/releases/latest\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--ink);text-decoration:underline\"><b>Download latest</b></a> and download the <b>.zip</b> file from GitHub.","inst.s2":"Open your Downloads folder, double-click the zip to unzip it, and drag <b>Findly</b> into the Applications folder.","inst.s3":"Open <b>Terminal</b>: press <kbd>⌘</kbd> + <kbd>Space</kbd> for Spotlight, type <b>Terminal</b>, and press <kbd>Return</kbd>.","inst.s4":"Click <b>Copy</b> at the top right of the black box below, go back to Terminal, press <kbd>⌘</kbd> + <kbd>V</kbd> to paste, then press <kbd>Return</kbd>. Findly opens; after that, open it from Applications as usual.","inst.copy":"Copy","inst.why":"<b>Wait, what is this?</b> Findly is a free, self-signed app that isn't notarized by Apple. I don't make apps for a living; I just build small things I find useful and good-looking, and Apple's yearly developer fee isn't in the budget… So macOS blocks the first launch. This line only removes the quarantine flag added when you downloaded it, then opens Findly. It changes nothing else, and you only need to do it once.",
-    "inst.cmt":"clear quarantine, then open","inst.btn":"Download latest",
+    "inst.brew":"<b>Use Homebrew?</b> One line, and no quarantine step: <code>brew install --cask rocavence/tap/findly</code>","inst.cmt":"clear quarantine, then open","inst.btn":"Download latest",
     "inst.fdah":"Full Disk Access: ","inst.fdap":"The drawer browses your whole file system and the sidebar mirrors Finder favorites, so grant Findly access in System Settings → Privacy & Security → Full Disk Access. Without it, protected folders (Desktop, Documents, Downloads, cloud storage) show up empty.",
     "note.eyebrow":"One more thing",
     "note.p1":"I wanted a file drawer I could summon on a whim and dismiss just as fast. Borrowing the real Finder's window cost too much, so I built my own—and got a far cleaner architecture for it.",
@@ -452,6 +437,8 @@ function setLang(lang){
     if(v!=null) el.innerHTML=v;
   });
   document.querySelectorAll(".lang button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
+  const shot=document.getElementById("drawerShot");
+  if(shot){shot.src=lang==="zh"?"shots/drawer-zh-dark.png":"shots/drawer-en-dark.png";shot.alt=lang==="zh"?"Findly 抽屜的實際畫面":"The real Findly drawer";}
   try{localStorage.setItem("findly-lang",lang)}catch(e){}
 }
 document.querySelectorAll(".lang button").forEach(b=>b.onclick=()=>setLang(b.dataset.lang));

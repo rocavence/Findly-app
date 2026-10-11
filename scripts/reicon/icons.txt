@@ -1,0 +1,30 @@
+# Findly 使用的 Reicon icon（名稱即 Reicon 原名）
+# 新增 icon：加一行後執行 python3 scripts/reicon/generate.py
+# 側欄與檔案圖示不用 Reicon：維持和 Finder 相同的系統圖示
+
+# 工具列
+chevron-left
+chevron-right
+search
+category
+
+# 選單列圖示：sidebar-right 加粗版（custom/，由 sidebar-right 外描 1.0 產生）
+sidebar-right-bold
+
+# 設定側欄的「抽屜」頁
+sidebar-right
+
+# 設定側欄
+setting2
+sidebar
+keyboard
+shield-check
+info-circle
+
+# 狀態與動作
+warning
+lock
+folder
+refresh
+check-circle
+arrow-up-right

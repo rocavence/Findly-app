@@ -1,0 +1,8 @@
+// 程式碼簽章。預設 ad-hoc（"-"），任何人都能直接建置。
+// 想用固定的自簽憑證（重建後 macOS 不會重置權限）：
+// 在同一個資料夾建立 Signing.local.xcconfig（不進版控），例如：
+//   CODE_SIGN_IDENTITY = Findly Self-Signed（Findly 一直用這個身分，完整磁碟取用權才會延續）
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+#include? "Signing.local.xcconfig"
