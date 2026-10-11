@@ -93,4 +93,4 @@ The first Findly drove a real Finder window as the drawer, opening it with Apple
 
 Version 1.0 is a rebuild: the list and sidebar are AppKit (`NSOutlineView`), folders are read off the main thread, the drawer opens on the current screen every time with a size limit, and the default shortcut moved from `` ⌘` `` to `` ⌃` ``, giving macOS back its shortcut for cycling an app's windows. It shares its settings card, design system, six languages and update check with [Configgy](https://configgy.rocavence.com), [Gamely](https://gamely.rocavence.com) and [Flione](https://flione.rocavence.com).
 
-<sub>Licensed under MIT · a personal tool, shared as-is, with no warranty · built with Claude Code.</sub>
+<sub>Licensed under CC BY-NC-SA 4.0 · a personal tool, shared as-is, with no warranty · built with Claude Code.</sub>

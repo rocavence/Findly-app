@@ -93,4 +93,4 @@ scripts/          build-app.sh、selftest.sh、screenshots.sh、update-cask.py�
 
 1.0 是重寫：檔案列表與側邊欄都改用 AppKit（`NSOutlineView`），讀取檔案夾移到背景執行緒，抽屜改成每次從目前螢幕滑出並限制尺寸，預設快速鍵從 `` ⌘` `` 改成 `` ⌃` ``，讓出 macOS 切換同一 App 視窗的快速鍵。設定卡、設計規範、六種語言與更新檢查，都和 [Configgy](https://configgy.rocavence.com)、[Gamely](https://gamely.rocavence.com)、[Flione](https://flione.rocavence.com) 共用。
 
-<sub>以 MIT 授權 · 個人工具，原樣分享，不提供任何保證 · 用 Claude Code 打造。</sub>
+<sub>以 CC BY-NC-SA 4.0 授權 · 個人工具，原樣分享，不提供任何保證 · 用 Claude Code 打造。</sub>

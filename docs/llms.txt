@@ -3,7 +3,7 @@
 > Findly is a free, open-source macOS menu bar utility. Press Ctrl + ~ (Control and the key left of 1, written ⌃` on a Mac) to slide a Finder-style file drawer in from any screen edge; switch to another app and it slides away. It is its own window — not the real Finder — so it appears on every Space with a single line of collectionBehavior, with no Apple Events, Accessibility, or private SPI.
 
 - Platform: macOS 14 (Sonoma) or later
-- Price: Free, open source (MIT license)
+- Price: Free, open source (CC BY-NC-SA 4.0: free for non-commercial use)
 - Author: rocavence (https://github.com/rocavence)
 - Install: `brew install --cask rocavence/tap/findly`
 - Download: https://github.com/rocavence/Findly-app/releases/latest
@@ -48,4 +48,4 @@ The original direction was to avoid rebuilding a file browser UI by driving a re
 
 - Download (latest release): https://github.com/rocavence/Findly-app/releases/latest
 - Source code & docs: https://github.com/rocavence/Findly-app
-- License: MIT
+- License: CC BY-NC-SA 4.0
