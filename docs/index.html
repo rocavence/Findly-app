@@ -239,6 +239,7 @@
   .install-box .cmd{user-select:all;-webkit-user-select:all;cursor:text}
   .copy-btn{position:absolute;top:9px;right:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#eef0f4;font:600 13px/1 -apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer;transition:.2s}
   .copy-btn:hover{background:rgba(255,255,255,.16)}
+  .install-box.brew{margin-top:12px}
   .copy-btn.ok{background:#28c840;border-color:transparent;color:#06210d}
   .why{max-width:700px;margin:20px auto 0;font-size:14px;color:var(--muted);text-align:left;background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
   .why b{color:var(--ink)}
@@ -334,8 +335,13 @@
       <button class="copy-btn" type="button" data-target="installCmd" data-i="inst.copy">複製</button>
       <pre><span class="cmd" id="installCmd">xattr -dr com.apple.quarantine /Applications/Findly.app && open /Applications/Findly.app</span></pre>
     </div>
-    <p class="why" data-i="inst.brew"><b>用 Homebrew？</b>一行裝好，也不用處理上面的隔離標記：<code>brew install --cask rocavence/tap/findly</code></p>
     <p class="why" data-i="inst.why"><b>蛤？這是在幹嘛？</b>Findly 是免費的自簽 app，沒有經過 Apple 公證。我也不是靠開發 App 維生，純粹是做自己覺得好用、好看的小東西，繳不起 Apple 每年的開發者規費⋯⋯所以 macOS 會擋下第一次開啟。這行指令只是拿掉下載時被加上的「隔離」標記，再幫你打開 Findly，不會改動其他東西，只需要做一次。</p>
+    <p class="why" data-i="inst.brew"><b>用 Homebrew？</b>一行裝好，也不用處理上面的隔離標記：</p>
+    <div class="install-box brew">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <button class="copy-btn" type="button" data-target="brewCmd" data-i="inst.copy">複製</button>
+      <pre><span class="cmd" id="brewCmd">brew install --cask rocavence/tap/findly</span></pre>
+    </div>
     <p class="fda"><b data-i="inst.fdah">完整磁碟取用權限：</b><span data-i="inst.fdap">抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。</span></p>
     <div class="cta" style="margin-top:30px">
       <a class="btn btn-primary" href="https://github.com/rocavence/Findly-app/releases/latest" target="_blank" rel="noopener"><span data-i="inst.btn">下載最新版</span></a>
@@ -393,7 +399,7 @@ const I18N = {
     "feat.c6h":"拖進拖出都行","feat.c6p":"檔案直接拖到別的 App，也能拖進抽屜、檔案夾或路徑列。名稱重複會自動加編號，不會蓋掉原檔。",
     "inst.eyebrow":"安裝","inst.h2":"拖進「應用程式」就好",
     "inst.lead":"跟著四個步驟做，大約一分鐘。第三步會用到「終端機」，不用怕，複製貼上就好。","inst.s1":"按<a href=\"https://github.com/rocavence/Findly-app/releases/latest\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--ink);text-decoration:underline\">這裡的「下載最新版」</a>，從 GitHub 下載 <b>Findly</b> 的 <b>.zip</b> 檔。","inst.s2":"到「下載項目」資料夾雙擊 zip 解壓縮，把 <b>Findly</b> 拖進「應用程式」資料夾。","inst.s3":"打開「終端機」：按 <kbd>Cmd</kbd> + <kbd>空白鍵</kbd> 叫出 Spotlight，輸入「<b>終端機</b>」（英文系統輸入 Terminal），按 <kbd>Return</kbd>。","inst.s4":"按下面黑色框右上角的「<b>複製</b>」，回到終端機按 <kbd>Cmd</kbd> + <kbd>V</kbd> 貼上，再按 <kbd>Return</kbd>。Findly 就會打開，之後從「應用程式」直接開就好。","inst.copy":"複製","inst.why":"<b>蛤？這是在幹嘛？</b>Findly 是免費的自簽 app，沒有經過 Apple 公證。我也不是靠開發 App 維生，純粹是做自己覺得好用、好看的小東西，繳不起 Apple 每年的開發者規費⋯⋯所以 macOS 會擋下第一次開啟。這行指令只是拿掉下載時被加上的「隔離」標記，再幫你打開 Findly，不會改動其他東西，只需要做一次。",
-    "inst.brew":"<b>用 Homebrew？</b>一行裝好，也不用處理上面的隔離標記：<code>brew install --cask rocavence/tap/findly</code>","inst.cmt":"清除 quarantine 後直接打開","inst.btn":"下載最新版",
+    "inst.brew":"<b>用 Homebrew？</b>一行裝好，也不用處理上面的隔離標記：","inst.cmt":"清除 quarantine 後直接打開","inst.btn":"下載最新版",
     "inst.fdah":"完整磁碟取用權限：","inst.fdap":"抽屜要瀏覽整個檔案系統、側欄要鏡像 Finder 最愛，請到「系統設定 → 隱私權與安全性 → 完整磁碟取用權限」把 Findly 打開。沒授權的話，桌面／文件／下載／雲端等受保護資料夾會列成空的。",
     "note.eyebrow":"寫在最後",
     "note.p1":"我想要一個「隨手叫出來、用完就消失」的檔案抽屜。試過去借真 Finder 的視窗，發現代價太大，最後決定自己刻一個——換來乾淨非常多的架構。",
@@ -422,7 +428,7 @@ const I18N = {
     "feat.c6h":"Drag in, drag out","feat.c6p":"Drag files straight into another app, or into the drawer, a folder or the path bar. A clashing name gets a number instead of overwriting.",
     "inst.eyebrow":"Install","inst.h2":"Just drag it to Applications",
     "inst.lead":"Four steps, about a minute. Step 3 uses Terminal — don't worry, it's just copy and paste.","inst.s1":"Click <a href=\"https://github.com/rocavence/Findly-app/releases/latest\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--ink);text-decoration:underline\"><b>Download latest</b></a> and download the <b>.zip</b> file from GitHub.","inst.s2":"Open your Downloads folder, double-click the zip to unzip it, and drag <b>Findly</b> into the Applications folder.","inst.s3":"Open <b>Terminal</b>: press <kbd>Cmd</kbd> + <kbd>Space</kbd> for Spotlight, type <b>Terminal</b>, and press <kbd>Return</kbd>.","inst.s4":"Click <b>Copy</b> at the top right of the black box below, go back to Terminal, press <kbd>Cmd</kbd> + <kbd>V</kbd> to paste, then press <kbd>Return</kbd>. Findly opens; after that, open it from Applications as usual.","inst.copy":"Copy","inst.why":"<b>Wait, what is this?</b> Findly is a free, self-signed app that isn't notarized by Apple. I don't make apps for a living; I just build small things I find useful and good-looking, and Apple's yearly developer fee isn't in the budget… So macOS blocks the first launch. This line only removes the quarantine flag added when you downloaded it, then opens Findly. It changes nothing else, and you only need to do it once.",
-    "inst.brew":"<b>Use Homebrew?</b> One line, and no quarantine step: <code>brew install --cask rocavence/tap/findly</code>","inst.cmt":"clear quarantine, then open","inst.btn":"Download latest",
+    "inst.brew":"<b>Use Homebrew?</b> One line, and no quarantine step:","inst.cmt":"clear quarantine, then open","inst.btn":"Download latest",
     "inst.fdah":"Full Disk Access: ","inst.fdap":"The drawer browses your whole file system and the sidebar mirrors Finder favorites, so grant Findly access in System Settings → Privacy & Security → Full Disk Access. Without it, protected folders (Desktop, Documents, Downloads, cloud storage) show up empty.",
     "note.eyebrow":"One more thing",
     "note.p1":"I wanted a file drawer I could summon on a whim and dismiss just as fast. Borrowing the real Finder's window cost too much, so I built my own—and got a far cleaner architecture for it.",
