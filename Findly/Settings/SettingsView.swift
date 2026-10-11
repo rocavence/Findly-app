@@ -519,7 +519,7 @@ private struct AboutPage: View {
 
     private var version: String {
         let info = Bundle.main.infoDictionary
-        return "\(info?["CFBundleShortVersionString"] as? String ?? "") (\(info?["CFBundleVersion"] as? String ?? ""))"
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "") b\(info?["CFBundleVersion"] as? String ?? "")"
     }
 
     var body: some View {
