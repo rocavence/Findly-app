@@ -77,6 +77,8 @@ final class NoticeBar: NSView {
     private let actionButton = NSButton()
     private let closeButton = NSButton()
     private let progress = NSProgressIndicator()
+    /// The tinted, rounded part; inset so the bar doesn't touch the toolbar or the list.
+    private let box = NSView()
     private var action: (() -> Void)?
     private var dismissTask: Task<Void, Never>?
     /// Holds the bar at zero height while hidden, so it takes no room.
@@ -88,9 +90,11 @@ final class NoticeBar: NSView {
 
     init() {
         super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = 8
-        layer?.cornerCurve = .continuous
+        box.wantsLayer = true
+        box.layer?.cornerRadius = 8
+        box.layer?.cornerCurve = .continuous
+        box.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(box)
         isHidden = true
         label.font = .systemFont(ofSize: 12)
         label.maximumNumberOfLines = 2
@@ -113,10 +117,15 @@ final class NoticeBar: NSView {
         stack.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 8)
         stack.translatesAutoresizingMaskIntoConstraints = false
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        addSubview(stack)
+        label.setContentHuggingPriority(.init(1), for: .horizontal)   // stretches, so the close button sits at the right
+        box.addSubview(stack)
+        let bottom = box.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2)
+        bottom.priority = .defaultHigh   // gives way while the bar is collapsed
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            box.topAnchor.constraint(equalTo: topAnchor, constant: 6), bottom,
+            box.leadingAnchor.constraint(equalTo: leadingAnchor), box.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: box.topAnchor), stack.bottomAnchor.constraint(equalTo: box.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: box.leadingAnchor), stack.trailingAnchor.constraint(equalTo: box.trailingAnchor),
         ])
     }
 
@@ -129,11 +138,12 @@ final class NoticeBar: NSView {
         dismissTask?.cancel()
         label.stringValue = text
         let color: NSColor = tone == .error ? .systemRed : tone == .warning ? .systemOrange : BrowserStyle.accent
-        layer?.backgroundColor = color.withAlphaComponent(0.12).cgColor
+        box.layer?.backgroundColor = color.withAlphaComponent(0.12).cgColor
         icon.image = NSImage(systemSymbolName: tone == .info ? "info.circle.fill" : "exclamationmark.triangle.fill", accessibilityDescription: nil)
         icon.contentTintColor = color
         icon.isHidden = working
         working ? progress.startAnimation(nil) : progress.stopAnimation(nil)
+        progress.isHidden = !working   // a stopped spinner still takes its space in the stack
         self.action = action?.run
         actionButton.title = action?.title ?? ""
         actionButton.isHidden = action == nil

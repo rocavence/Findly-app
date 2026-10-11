@@ -63,9 +63,9 @@ enum SelfTest {
         let renamed = try FileOperations.rename(notes, to: "Notes.txt")
         check("case-only rename works", fm.fileExists(atPath: renamed.path) && renamed.lastPathComponent == "Notes.txt")
         let design = projects.appendingPathComponent("Design")
-        let failed = await FileOperations.transfer([projects.appendingPathComponent("report.pdf")], to: design, .copy) { _, _ in }
+        let failed = await FileOperations.transfer([projects.appendingPathComponent("report.pdf")], to: design, .copy)
         check("copy succeeded", failed.isEmpty)
-        _ = await FileOperations.transfer([projects.appendingPathComponent("report.pdf")], to: design, .copy) { _, _ in }
+        _ = await FileOperations.transfer([projects.appendingPathComponent("report.pdf")], to: design, .copy)
         check("second copy gets a numbered name", fm.fileExists(atPath: design.appendingPathComponent("report 2.pdf").path))
         check("trash works", FileOperations.trash([design.appendingPathComponent("report 2.pdf")]).isEmpty)
     }

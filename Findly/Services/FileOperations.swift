@@ -53,23 +53,21 @@ enum FileOperations {
     enum Transfer: Sendable { case copy, move }
 
     /// Copies or moves items into a folder off the main thread, never
-    /// overwriting (a clash gets a numbered name), reporting progress per item.
+    /// overwriting (a clash gets a numbered name).
     /// Returns the items that failed.
     @concurrent
-    static func transfer(_ sources: [URL], to folder: URL, _ kind: Transfer,
-                         progress: @escaping @Sendable (Int, Int) -> Void) async -> [URL] {
+    static func transfer(_ sources: [URL], to folder: URL, _ kind: Transfer) async -> [URL] {
         let fm = FileManager.default
         var failed: [URL] = []
-        for (index, source) in sources.enumerated() {
+        for source in sources {
             let sameFolder = source.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL
-            if kind == .move, sameFolder { progress(index + 1, sources.count); continue }
+            if kind == .move, sameFolder { continue }
             let target = uniqueDestination(for: source.lastPathComponent, in: folder, copySuffix: kind == .copy && sameFolder)
             do {
                 if kind == .move { try fm.moveItem(at: source, to: target) } else { try fm.copyItem(at: source, to: target) }
             } catch {
                 failed.append(source)
             }
-            progress(index + 1, sources.count)
         }
         return failed
     }

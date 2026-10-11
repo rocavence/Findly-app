@@ -510,6 +510,11 @@ extension FileListController: NSOutlineViewDataSource, NSOutlineViewDelegate {
 
     func outlineView(_ outlineView: NSOutlineView, draggingSession session: NSDraggingSession, willBeginAt screenPoint: NSPoint, forItems draggedItems: [Any]) {
         isDraggingOut = true
+        // Dragging a row that isn't selected selects it, as in Finder, so what's dragged stays highlighted.
+        let rows = IndexSet(draggedItems.map { outlineView.row(forItem: $0) }.filter { $0 >= 0 })
+        if !rows.isSubset(of: outlineView.selectedRowIndexes) {
+            outlineView.selectRowIndexes(rows, byExtendingSelection: false)
+        }
     }
 
     func outlineView(_ outlineView: NSOutlineView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
@@ -567,27 +572,12 @@ enum DropRules {
         let op = operation(info, into: folder)
         let sources = urls(info)
         guard !sources.isEmpty, op == .move || op == .copy else { return false }
-        let moving = op == .move
-        let start: String
-        if sources.count == 1 {
-            let name = sources[0].lastPathComponent
-            start = moving ? String(localized: "Moving “\(name)”…") : String(localized: "Copying “\(name)”…")
-        } else {
-            start = moving ? String(localized: "Moving \(sources.count) items…") : String(localized: "Copying \(sources.count) items…")
-        }
-        host?.notify(start, tone: .info, working: true)
+        // No progress or "Done" message, as in Finder; only failures are reported.
         Task { @MainActor [weak host] in
-            let failed = await FileOperations.transfer(sources, to: folder.resolvingSymlinksInPath(), moving ? .move : .copy) { done, total in
-                Task { @MainActor in
-                    host?.notify(moving ? String(localized: "Moving \(done) of \(total)…") : String(localized: "Copying \(done) of \(total)…"),
-                                 tone: .info, working: done < total)
-                }
-            }
-            if failed.isEmpty {
-                host?.notify(String(localized: "Done."), tone: .info, working: false)
-            } else if failed.count == 1 {
+            let failed = await FileOperations.transfer(sources, to: folder.resolvingSymlinksInPath(), op == .move ? .move : .copy)
+            if failed.count == 1 {
                 host?.notify(String(localized: "“\(failed[0].lastPathComponent)” couldn't be copied or moved."), tone: .error, working: false)
-            } else {
+            } else if failed.count > 1 {
                 host?.notify(String(localized: "\(failed.count) items couldn't be copied or moved."), tone: .error, working: false)
             }
         }
